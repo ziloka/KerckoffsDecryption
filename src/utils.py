@@ -34,7 +34,16 @@ def list_shift_column(matrix, col_idx, num_shifts):
 # https://stackoverflow.com/a/12739974
 def list_2_dict(l):
     return dict(itertools.zip_longest(*[iter(l)] * 2, fillvalue=""))
-    # return {k: v for k, v in dict(zip(*[iter(dct)]*2)).items()}
+
+def list_duplicates(l):
+    seen = set()
+    dupes = []
+    for x in l:
+        if x in seen:
+            dupes.append(x)
+        else:
+            seen.add(x)
+    return dupes
 
 def dict_swap_keys_and_values(dct):
     return dict((v, k) for k, v in dct.items())

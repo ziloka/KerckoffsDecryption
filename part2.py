@@ -14,7 +14,7 @@ from itertools import chain
 from tabulate import tabulate 
 
 from src.crypto import decrypt
-from src.utils import dict_shift_values, dict_swap_keys_and_values, list_shift_column, list_2_dict, find_in_list_of_list
+from src.utils import dict_shift_values, dict_swap_keys_and_values, list_shift_column, list_2_dict, find_in_list_of_list, list_duplicates
 
 logger = logging.getLogger(__file__)
 logger.setLevel('DEBUG')
@@ -34,11 +34,15 @@ def crack(encrypted):
         length = int(encrypted[start])
         code = encrypted[start:start + length]
 
-        # find some index that is empty
-        found = find_in_list_of_list(key, '')
+        i = -1
+        found = find_in_list_of_list(key, code)
         if type(found) == int:
-            hasempty = False
-            break
+            # find some index that is empty
+            found = find_in_list_of_list(key, '')
+            if type(found) == int:
+                hasempty = False
+                break
+
         i = found[0]
 
         key[i][1] = code
@@ -58,16 +62,18 @@ def crack(encrypted):
 key = list(chain.from_iterable(crack(copy.deepcopy(text))))
 
 # print(len(key))
-start = len(key)
-key = dict_swap_keys_and_values(list_2_dict(key))
+# start = len(key)
+keydict = list_2_dict(key)
 
-if start != len(key):
-    print("Warning! There are duplicates!")
+print(f"Here are the duplicate codewords: {list_duplicates(list(keydict.values()))}")
+
+key = dict_swap_keys_and_values(keydict)
+
 
 # print(key)
 print(len(key))
 
 # # Try shifting the keys (letters) in the dict times
-# for i in range(0, len(alphabet)):
-#     dict_shift_values(key, 1)
-#     print(decrypt(text, key))
+for i in range(0, len(alphabet)):
+    dict_shift_values(key, 1)
+    print(decrypt(text, key))
