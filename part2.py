@@ -18,8 +18,7 @@ from src.utils import dict_shift_values, dict_swap_keys_and_values, list_shift_c
 
 logger = logging.getLogger(__file__)
 logger.setLevel('DEBUG')
-# logging.basicConfig(filename="stdout.log", encoding="utf-8", level=logging.DEBUG)
-filehandler_dbg  = logging.FileHandler(logger.name + "-debug.log")
+filehandler_dbg = logging.FileHandler(logger.name + "-debug.log", mode='w')
 filehandler_dbg.setLevel('DEBUG')
 logger.addHandler(filehandler_dbg)
 
