@@ -8,40 +8,40 @@ import re
 import string
 import copy
 from collections import deque
-from src.crypto import decrypt, dict_shift_values
+from itertools import chain
+from src.crypto import decrypt
+from src.utils import dict_shift_values, dict_swap_keys_and_values, list_shift_column, list_2_dict
 
+alphabet = list(string.ascii_uppercase)
 text = open("input/part2.txt", "r").read()
 
-i = 0
-alphabet = list(string.ascii_uppercase)
-codewordmap = [''] * len(alphabet)
-print(codewordmap)
-encrypted = copy.deepcopy(text)
-while any(char.isdigit() for char in encrypted) and i < len(alphabet):
-    results = re.finditer("\d+", encrypted)
-    for result in results:
+def crack(encrypted):
+    i = 0
+    key = [[letter, ''] for letter in alphabet]
+    while any(char.isdigit() for char in encrypted) and i < len(alphabet):
+        result = re.search("\d+", encrypted)
         start = result.start()
         length = int(encrypted[start])
         code = encrypted[start:start + length]
-        if code not in codewordmap:
-            codewordmap[i] = [code, alphabet[i]]
-        else:
-            # print(f"{codewordmap}")
-            print(f"[{start}] code: {code} already exists in alphabet: {alphabet[i]}")
-            continue
-        i+=1
-        encrypted = encrypted.replace(code, codewordmap[code], 1)
-    # print(f"{i} {codewordmap}")
+        key[i][1] = code
+        letter = key[i][0]
+        encrypted = encrypted.replace(code, letter, 1)
+        list_shift_column(key, 1, int(code[-1]))
+    return key
 
-# Try checking if shorter codewords are in larger codewords
+# flatten the result and convert 2 dict
+key = list(chain.from_iterable(crack(copy.deepcopy(text))))
 
-# Try shifting the keys (letters) in the dict 24 times
-# print(text)
-# print(len(codewordmap))
-# print(codewordmap)
+# if len(set(key)) != len(key):
+#     print("Warning! There are duplicates!")
+print(len(key))
 
-# for i in range(0, 24):
-#     dict_shift_values(codewordmap, i)
-#     # print(codewordmap)
-#     print(decrypt(text, codewordmap))
+key = dict_swap_keys_and_values(list_2_dict(key))
 
+# print(key)
+print(len(key))
+
+# Try shifting the keys (letters) in the dict times
+for i in range(0, len(alphabet)):
+    dict_shift_values(key, 1)
+    print(decrypt(text, key))
