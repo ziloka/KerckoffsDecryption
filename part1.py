@@ -1,4 +1,5 @@
 import regex
+import re
 from collections import deque
 
 contents = open("part1.txt", "r").read().splitlines()
@@ -8,7 +9,6 @@ codemap = dict(zip(*[iter(contents)]*2))
 # swap the keys and the values
 codemap = {v: k for k, v in codemap.items()}
 string = open("input.txt", "r").read()
-plaintext = ""
 
 # https://stackoverflow.com/a/21139641
 def dict_roll(dct, n):
@@ -16,11 +16,10 @@ def dict_roll(dct, n):
     shift_values.rotate(n)
     return dict(zip(dct.keys(), shift_values))
 
-i = 0
-while i < len(string):
-    length = string[i]
-    code = string[i:i+int(length)]
-    plaintext += codemap[code]
+while any(char.isdigit() for char in string):
+    length = string[0]
+    code = string[:int(length)]
+    string = string.replace(code, codemap[code], 1)
     dict_roll(codemap, int(code[-1]))
 
     # print(code)
