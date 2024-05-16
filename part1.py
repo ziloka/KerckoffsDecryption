@@ -1,4 +1,3 @@
-import regex
 import re
 from collections import deque
 
@@ -17,13 +16,11 @@ def dict_roll(dct, n):
     return dict(zip(dct.keys(), shift_values))
 
 while any(char.isdigit() for char in string):
-    length = string[0]
-    code = string[:int(length)]
+    result = re.search("\d+", string)
+    length = string[result.start()]
+    code = string[result.start():result.start() + int(length)]
+    # print(f": {result.start()} {result.end()} {length} {code}\n")
     string = string.replace(code, codemap[code], 1)
     dict_roll(codemap, int(code[-1]))
 
-    # print(code)
-    # for key in codemap:
-        # string = string.replace(key, codemap[key])
-
-print(plaintext)
+print(string)
