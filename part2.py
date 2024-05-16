@@ -7,41 +7,68 @@
 import re
 import string
 import copy
+import logging
 from collections import deque
 from itertools import chain
+
+from tabulate import tabulate 
+
 from src.crypto import decrypt
-from src.utils import dict_shift_values, dict_swap_keys_and_values, list_shift_column, list_2_dict
+from src.utils import dict_shift_values, dict_swap_keys_and_values, list_shift_column, list_2_dict, find_in_list_of_list
+
+logger = logging.getLogger(__file__)
+logger.setLevel('DEBUG')
+# logging.basicConfig(filename="stdout.log", encoding="utf-8", level=logging.DEBUG)
+filehandler_dbg  = logging.FileHandler(logger.name + "-debug.log")
+filehandler_dbg.setLevel('DEBUG')
+logger.addHandler(filehandler_dbg)
 
 alphabet = list(string.ascii_uppercase)
 text = open("input/part2.txt", "r").read()
 
 def crack(encrypted):
-    i = 0
     key = [[letter, ''] for letter in alphabet]
-    while any(char.isdigit() for char in encrypted) and i < len(alphabet):
+    hasempty = True
+    while any(char.isdigit() for char in encrypted) and hasempty:
         result = re.search("\d+", encrypted)
         start = result.start()
         length = int(encrypted[start])
         code = encrypted[start:start + length]
+
+        # find some index that is empty
+        found = find_in_list_of_list(key, '')
+        if type(found) == int:
+            hasempty = False
+            break
+        i = found[0]
+
         key[i][1] = code
         letter = key[i][0]
+
+        logger.debug(f"letter: {letter}")
+        logger.debug(encrypted)
+        logger.debug(f"[{code}] shift codewords by {code[-1]}")
+        logger.debug(tabulate(key, headers=["Letter", "Codeword"]))
+
         encrypted = encrypted.replace(code, letter, 1)
         list_shift_column(key, 1, int(code[-1]))
+
     return key
 
 # flatten the result and convert 2 dict
 key = list(chain.from_iterable(crack(copy.deepcopy(text))))
 
-# if len(set(key)) != len(key):
-#     print("Warning! There are duplicates!")
-print(len(key))
-
+# print(len(key))
+start = len(key)
 key = dict_swap_keys_and_values(list_2_dict(key))
+
+if start != len(key):
+    print("Warning! There are duplicates!")
 
 # print(key)
 print(len(key))
 
-# Try shifting the keys (letters) in the dict times
-for i in range(0, len(alphabet)):
-    dict_shift_values(key, 1)
-    print(decrypt(text, key))
+# # Try shifting the keys (letters) in the dict times
+# for i in range(0, len(alphabet)):
+#     dict_shift_values(key, 1)
+#     print(decrypt(text, key))

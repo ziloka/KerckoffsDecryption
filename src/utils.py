@@ -1,6 +1,14 @@
 import itertools
 from collections import deque
 
+# https://stackoverflow.com/a/33938783
+def find_in_list_of_list(mylist, char):
+    for sub_list in mylist:
+        if char in sub_list:
+            return (mylist.index(sub_list), sub_list.index(char))
+    return -1
+    # raise ValueError("'{char}' is not in list".format(char = char))
+
 def list_shift_column(matrix, col_idx, num_shifts):
     if not matrix or col_idx < 0 or col_idx >= len(matrix[0]):
         raise Exception("Column index is out of range")
