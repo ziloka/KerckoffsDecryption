@@ -10,7 +10,7 @@ import copy
 from collections import deque
 from src.crypto import decrypt, dict_shift_values
 
-text = open("part2.txt", "r").read()
+text = open("input/part2.txt", "r").read()
 
 i = 0
 alphabet = list(string.ascii_uppercase)
