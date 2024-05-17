@@ -7,7 +7,7 @@
 import string
 import copy
 import logging
-from collections import deque
+from collections import deque, Counter
 from itertools import chain
 
 from tabulate import tabulate 
@@ -22,29 +22,52 @@ filehandler_dbg.setLevel('DEBUG')
 logger.addHandler(filehandler_dbg)
 
 alphabet = list(string.ascii_uppercase)
-text = open("input/part2.txt", "r").read().strip()
+filename = "input/part1.txt"
+text = open(filename, "r").read().strip()
+
+def logFrequencyData(codewordmap):
+    freq = {letter: 0 for letter in alphabet}
+    start = 0
+    data = []
+    while any(char.isdigit() for char in text) and start < len(text):  
+        length = int(text[start])
+        code = text[start:start + length]
+        letter = codewordmap[code]
+        freq[letter]+=1
+
+        data.append({
+            "letter": letter,
+            "start": start,
+            "end": start + length
+        })
+
+        start += length
+        codewordmap = dict_shift_keys(codewordmap, int(code[-1]))
+
+    logger.debug(tabulate(list(zip(freq.keys(), freq.values())), headers=["Letter", "Frequency"]))
+    logger.debug(f"There are {sum(freq.values())} characters")
+    logger.debug(data)
+    # print(codewordmap)
+    logger.debug(text)
 
 def codewords(encrypted):
     start = 0
     key = [[letter, ''] for letter in alphabet]
-    while any(char.isdigit() for char in encrypted) and start <= len(encrypted):
+    while any(char.isdigit() for char in encrypted) and start < len(encrypted):
         length = int(encrypted[start])
         code = encrypted[start:start + length]
 
-        print(start, start+length)
+        # print(start, start+length)
 
         found = find_in_list_of_list(key, code)
-        if type(found) == int:
+        if type(found) == int and found == -1:
             found = find_in_list_of_list(key, '')
-
         i = found[0]
 
-        if key[i][1] != '' and key[i][1] != code:
-            print(f"tried to place {key[i][1]} but {code} was there")
         key[i][1] = code
         letter = key[i][0]
 
-        print(code)
+        # print(code)
         logger.debug(encrypted)
         logger.debug(f"[{letter} {code}] shift codewords by {code[-1]}")
         logger.debug(tabulate(key, headers=["Letter", "Codeword"]))
@@ -60,56 +83,32 @@ key = list(chain.from_iterable(codewords(copy.deepcopy(text))))
 
 keydict = list_2_dict(key)
 
-# print(f"Here are the duplicate codewords: {list_duplicates(list(keydict.values()))}")
+print(f"Here are the duplicate codewords: {list_duplicates(list(keydict.values()))}")
 
 codewordmap = dict_swap_keys_and_values(keydict)
 
 logger.debug(text)
+logger.debug('Warning! codewordmap values are incorrect position and order')
 logger.debug(codewordmap)
+logger.debug('Codewords might be wrong double check to make sure')
+logger.debug(list(codewordmap.keys()))
+# print(codewordmap)
 # print(substitutioncipher)
 
 # # # # Try shifting the keys (letters) in the dict times
-for i in range(0, len(alphabet)):
-    codewordmap = dict_shift_values(codewordmap, 1)
-    print(decrypt(text, codewordmap))
+# logger.debug('--------- Rotating code"wordmap ------------')
 
-# freq = {letter: 0 for letter in alphabet}
+# for i in range(0, len(alphabet)):
+#     codewordmap = dict_shift_keys(codewordmap, 1)
+#     logger.debug(codewordmap)
+#     print(decrypt(text, codewordmap))
 
-# start = 0
-# data = []
-# textcopy = copy.deepcopy(text)
-# while any(char.isdigit() for char in textcopy) and start < len(textcopy):  
-#     length = int(textcopy[start])
-#     code = textcopy[start:start + length]
-#     letter = codewordmap[code]
+logFrequencyData(codewordmap)
 
-#     data.append({
-#         "letter": letter,
-#         "start": start,
-#         "end": start + length
-#     })
-
-#     start += length
-#     codewordmap = dict_shift_keys(codewordmap, int(code[-1]))
-
-# # logger.debug(tabulate(list(zip(freq.keys(), freq.values())), headers=["Letter", "Frequency"]))
-# logger.debug(data)
-# # print(codewordmap)
-# # logger.debug(text)
-
-# # print(data)
-
-# print("".join([item["letter"] for item in data]))
-
-# for letter, positions in data.items():
-#     for pos in positions:
-#         start = pos["start"]
-#         end = pos["end"]
-#         # print(pos["start"])
-#         # print(pos["end"])
-#         # print(text[start:end])
-#         text = text.replace(text[start:end], letter, 1)
-#         # text = text[:start] + letter + text[end:]
-#         # text[start:end] = letter
-
-# print(text)
+if "part1" in filename:
+    logger.debug("-- part 1 crack specific info --")
+    same =Counter(list(codewordmap.keys())) == Counter(['4502', '53177', '946320122', '85053600', '7171031', '87445918', '4504', '692473', '20', '638440', '57643', '7004062', '52381', '930424404', '84524991', '89411894', '4254', '376', '88527391', '23', '29', '361', '923921735', '4468', '636187', '971559793'])
+    if same:
+        logger.debug("codewordmaps are the same")
+    else:
+        logger.debug("codewordmaps are different")
