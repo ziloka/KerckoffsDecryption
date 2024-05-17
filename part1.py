@@ -32,3 +32,5 @@ def decrypt(text: str, codewordmap: dict[str, str]):
     return text
 
 print(decrypt(encrypted, dict_swap_keys_and_values(list_2_dict(codewords))))
+
+# THE CACHE IS LOCATED AT NORTH THIRTY NINE DEGREES TEN POINT FOUR EIGHT TWO YOULL ALSO NEED WEST SEVENTY SIX DEGREES FIFTY ONE POINT FOUR HUNDRED TWENTY TWO CACHE IS AB IS ON ON A FENCE

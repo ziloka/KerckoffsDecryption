@@ -63,7 +63,7 @@ print(f"Here are the duplicate codewords: {list_duplicates(list(keydict.values()
 
 codewordmap = dict_swap_keys_and_values(keydict)
 
-# print(text)
+logger.debug(text)
 # print(substitutioncipher)
 
 # # # # Try shifting the keys (letters) in the dict times
@@ -72,18 +72,39 @@ codewordmap = dict_swap_keys_and_values(keydict)
 #     print(decrypt(text, codewordmap))
 
 freq = {letter: 0 for letter in alphabet}
+data = {letter: [] for letter in alphabet}
 
-while any(char.isdigit() for char in text):
-    result = re.search("\d+", text)
+textcopy = copy.deepcopy(text)
+while any(char.isdigit() for char in textcopy):
+    result = re.search("\d+", textcopy)
     start = result.start()
-    length = int(text[start])
-    code = text[start:start + length]
+    length = int(textcopy[start])
+    code = textcopy[start:start + length]
     letter = codewordmap[code]
+    
     freq[letter]+=1
-    text = text.replace(code, codewordmap[code], 1)
+    data[letter].append({
+        "start": start,
+        "end": start + length
+    })
+
+    textcopy = textcopy.replace(code, codewordmap[code], 1)
     codewordmap = dict_shift_keys(codewordmap, int(code[-1]))
 
-print(text)
 logger.debug(tabulate(list(zip(freq.keys(), freq.values())), headers=["Letter", "Frequency"]))
-
+# logger.debug(data)
 print(codewordmap)
+# logger.debug(text)
+
+for letter, positions in data.items():
+    for pos in positions:
+        start = pos["start"]
+        end = pos["end"]
+        # print(pos["start"])
+        # print(pos["end"])
+        # print(text[start:end])
+        text = text.replace(text[start:end], letter, 1)
+        # text = text[:start] + letter + text[end:]
+        # text[start:end] = letter
+
+print(text)
