@@ -14,7 +14,7 @@ from itertools import chain
 from tabulate import tabulate 
 
 from src.crypto import decrypt
-from src.utils import dict_shift_values, dict_swap_keys_and_values, list_shift_column, list_2_dict, find_in_list_of_list, list_duplicates
+from src.utils import dict_shift_values, printTable, dict_shift_keys, dict_swap_keys_and_values, list_shift_column, list_2_dict, find_in_list_of_list, list_duplicates
 
 logger = logging.getLogger(__file__)
 logger.setLevel('DEBUG')
@@ -34,24 +34,20 @@ def crack(encrypted):
         length = int(encrypted[start])
         code = encrypted[start:start + length]
 
-        i = -1
         found = find_in_list_of_list(key, code)
         if type(found) == int:
-            # find some index that is empty
             found = find_in_list_of_list(key, '')
-            if type(found) == int:
-                hasempty = False
-                break
 
         i = found[0]
 
+        if key[i][1] != '' and key[i][1] != code:
+            print(f"tried to place {key[i][1]} but {code} was there")
         key[i][1] = code
         letter = key[i][0]
 
-        logger.debug(f"letter: {letter}")
-        logger.debug(encrypted)
-        logger.debug(f"[{code}] shift codewords by {code[-1]}")
-        logger.debug(tabulate(key, headers=["Letter", "Codeword"]))
+        # logger.debug(encrypted)
+        # logger.debug(f"[{letter} {code}] shift codewords by {code[-1]}")
+        # logger.debug(tabulate(key, headers=["Letter", "Codeword"]))
 
         encrypted = encrypted.replace(code, letter, 1)
         list_shift_column(key, 1, int(code[-1]))
@@ -61,19 +57,33 @@ def crack(encrypted):
 # flatten the result and convert 2 dict
 key = list(chain.from_iterable(crack(copy.deepcopy(text))))
 
-# print(len(key))
-# start = len(key)
 keydict = list_2_dict(key)
 
 print(f"Here are the duplicate codewords: {list_duplicates(list(keydict.values()))}")
 
-key = dict_swap_keys_and_values(keydict)
+codewordmap = dict_swap_keys_and_values(keydict)
 
+# print(text)
+# print(substitutioncipher)
 
-# print(key)
-print(len(key))
+# # # # Try shifting the keys (letters) in the dict times
+# for i in range(0, len(alphabet)):
+#     dict = dict_shift_values(codewordmap, 1)
+#     print(decrypt(text, codewordmap))
 
-# # Try shifting the keys (letters) in the dict times
-for i in range(0, len(alphabet)):
-    dict_shift_values(key, 1)
-    print(decrypt(text, key))
+freq = {letter: 0 for letter in alphabet}
+
+while any(char.isdigit() for char in text):
+    result = re.search("\d+", text)
+    start = result.start()
+    length = int(text[start])
+    code = text[start:start + length]
+    letter = codewordmap[code]
+    freq[letter]+=1
+    text = text.replace(code, codewordmap[code], 1)
+    codewordmap = dict_shift_keys(codewordmap, int(code[-1]))
+
+print(text)
+logger.debug(tabulate(list(zip(freq.keys(), freq.values())), headers=["Letter", "Frequency"]))
+
+print(codewordmap)

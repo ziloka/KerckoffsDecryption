@@ -1,6 +1,20 @@
 import itertools
 from collections import deque
 
+# https://stackoverflow.com/a/40389411
+def printTable(myDict, colList=None):
+   """ Pretty print a list of dictionaries (myDict) as a dynamically sized table.
+   If column names (colList) aren't specified, they will show in random order.
+   Author: Thierry Husson - Use it as you want but don't blame me.
+   """
+   if not colList: colList = list(myDict[0].keys() if myDict else [])
+   myList = [colList] # 1st row = header
+   for item in myDict: myList.append([str(item[col] if item[col] is not None else '') for col in colList])
+   colSize = [max(map(len,col)) for col in zip(*myList)]
+   formatStr = ' | '.join(["{{:<{}}}".format(i) for i in colSize])
+   myList.insert(1, ['-' * i for i in colSize]) # Seperating line
+   return [formatStr.format(*item) for item in myList].join("\n")
+
 # https://stackoverflow.com/a/33938783
 def find_in_list_of_list(mylist, char):
     for sub_list in mylist:
