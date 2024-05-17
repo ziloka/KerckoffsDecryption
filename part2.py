@@ -23,9 +23,9 @@ filehandler_dbg.setLevel('DEBUG')
 logger.addHandler(filehandler_dbg)
 
 alphabet = list(string.ascii_uppercase)
-text = open("input/part2.txt", "r").read()
+text = open("input/part2.txt", "r").read().strip()
 
-def crack(encrypted):
+def codewords(encrypted):
     key = [[letter, ''] for letter in alphabet]
     hasempty = True
     while any(char.isdigit() for char in encrypted) and hasempty:
@@ -55,11 +55,11 @@ def crack(encrypted):
     return key
 
 # flatten the result and convert 2 dict
-key = list(chain.from_iterable(crack(copy.deepcopy(text))))
+key = list(chain.from_iterable(codewords(copy.deepcopy(text))))
 
 keydict = list_2_dict(key)
 
-print(f"Here are the duplicate codewords: {list_duplicates(list(keydict.values()))}")
+# print(f"Here are the duplicate codewords: {list_duplicates(list(keydict.values()))}")
 
 codewordmap = dict_swap_keys_and_values(keydict)
 
@@ -67,44 +67,53 @@ logger.debug(text)
 # print(substitutioncipher)
 
 # # # # Try shifting the keys (letters) in the dict times
-# for i in range(0, len(alphabet)):
-#     dict = dict_shift_values(codewordmap, 1)
-#     print(decrypt(text, codewordmap))
+for i in range(0, len(alphabet)):
+    dict = dict_shift_values(codewordmap, 1)
+    print(decrypt(text, codewordmap))
 
-freq = {letter: 0 for letter in alphabet}
-data = {letter: [] for letter in alphabet}
+# freq = {letter: 0 for letter in alphabet}
 
+def find_first_digit_index(s, start_index=0):
+    for index in range(start_index, len(s)):
+        if s[index].isdigit():
+            return index
+    return -1  # Return -1 if no digit is found
+
+start = 0
+data = []
 textcopy = copy.deepcopy(text)
-while any(char.isdigit() for char in textcopy):
-    result = re.search("\d+", textcopy)
-    start = result.start()
+while any(char.isdigit() for char in textcopy) and start < len(textcopy):  
     length = int(textcopy[start])
     code = textcopy[start:start + length]
     letter = codewordmap[code]
-    
-    freq[letter]+=1
-    data[letter].append({
+
+    data.append({
+        "letter": letter,
         "start": start,
         "end": start + length
     })
 
-    textcopy = textcopy.replace(code, codewordmap[code], 1)
+    start += length
     codewordmap = dict_shift_keys(codewordmap, int(code[-1]))
 
-logger.debug(tabulate(list(zip(freq.keys(), freq.values())), headers=["Letter", "Frequency"]))
-# logger.debug(data)
-print(codewordmap)
+# logger.debug(tabulate(list(zip(freq.keys(), freq.values())), headers=["Letter", "Frequency"]))
+logger.debug(data)
+# print(codewordmap)
 # logger.debug(text)
 
-for letter, positions in data.items():
-    for pos in positions:
-        start = pos["start"]
-        end = pos["end"]
-        # print(pos["start"])
-        # print(pos["end"])
-        # print(text[start:end])
-        text = text.replace(text[start:end], letter, 1)
-        # text = text[:start] + letter + text[end:]
-        # text[start:end] = letter
+# print(data)
 
-print(text)
+print("".join([item["letter"] for item in data]))
+
+# for letter, positions in data.items():
+#     for pos in positions:
+#         start = pos["start"]
+#         end = pos["end"]
+#         # print(pos["start"])
+#         # print(pos["end"])
+#         # print(text[start:end])
+#         text = text.replace(text[start:end], letter, 1)
+#         # text = text[:start] + letter + text[end:]
+#         # text[start:end] = letter
+
+# print(text)
