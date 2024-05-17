@@ -12,7 +12,7 @@ from itertools import chain, permutations
 from tabulate import tabulate
 from scipy.stats import chisquare
 
-import utils
+import helper.utils as utils
 
 logger = logging.getLogger(__file__)
 logger.setLevel('DEBUG')
