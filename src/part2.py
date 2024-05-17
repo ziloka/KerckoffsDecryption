@@ -5,15 +5,14 @@
 # None of these additional countermeasures will be employed for these puzzles (at least intentionally, all keys have been generated randomly).
 
 import string
-import copy
 import logging
-from collections import deque, Counter
-from itertools import chain
+from collections import Counter
+from itertools import chain, permutations
 
-from tabulate import tabulate 
+from tabulate import tabulate
+from scipy.stats import chisquare
 
-from src.crypto import decrypt
-from src.utils import dict_shift_values, printTable, dict_shift_keys, dict_swap_keys_and_values, list_shift_column, list_2_dict, find_in_list_of_list, list_duplicates
+import utils
 
 logger = logging.getLogger(__file__)
 logger.setLevel('DEBUG')
@@ -25,7 +24,7 @@ alphabet = list(string.ascii_uppercase)
 filename = "input/part1.txt"
 text = open(filename, "r").read().strip()
 
-def logFrequencyData(codewordmap):
+def getFrequency(codewordmap):
     freq = {letter: 0 for letter in alphabet}
     start = 0
     data = []
@@ -42,50 +41,55 @@ def logFrequencyData(codewordmap):
         })
 
         start += length
-        codewordmap = dict_shift_keys(codewordmap, int(code[-1]))
+        codewordmap = utils.dict_shift_keys(codewordmap, int(code[-1]))
 
-    logger.debug(tabulate(list(zip(freq.keys(), freq.values())), headers=["Letter", "Frequency"]))
-    logger.debug(f"There are {sum(freq.values())} characters")
-    logger.debug(data)
-    # print(codewordmap)
-    logger.debug(text)
+    # logger.debug(tabulate(list(zip(freq.keys(), freq.values())), headers=["Letter", "Frequency"]))
+    # logger.debug(f"There are {sum(freq.values())} characters")
+    # logger.debug(data)
+    # # print(codewordmap)
+    # logger.debug(text)
+    return freq
 
 def codewords(encrypted):
     start = 0
-    key = [[letter, ''] for letter in alphabet]
+    codewordmap = [[letter, ''] for letter in alphabet]
+    freq = {letter: 0 for letter in alphabet}
     while any(char.isdigit() for char in encrypted) and start < len(encrypted):
         length = int(encrypted[start])
         code = encrypted[start:start + length]
 
         # print(start, start+length)
 
-        found = find_in_list_of_list(key, code)
+        found = utils.find_in_list_of_list(codewordmap, code)
         if type(found) == int and found == -1:
-            found = find_in_list_of_list(key, '')
+            found = utils.find_in_list_of_list(codewordmap, '')
         i = found[0]
 
-        key[i][1] = code
-        letter = key[i][0]
+        codewordmap[i][1] = code
+        letter = codewordmap[i][0]
+        freq[letter]+=1
 
         # print(code)
-        logger.debug(encrypted)
-        logger.debug(f"[{letter} {code}] shift codewords by {code[-1]}")
-        logger.debug(tabulate(key, headers=["Letter", "Codeword"]))
+        # logger.debug(encrypted)
+        # logger.debug(f"[{letter} {code} freq: {freq[letter]}] shift codewords by {code[-1]}")
+        # logger.debug(tabulate(codewordmap, headers=["Letter", "Codeword"]))
 
         start += length
-        # encrypted = encrypted.replace(code, letter, 1)
-        list_shift_column(key, 1, int(code[-1]))
+        utils.list_shift_column(codewordmap, 1, int(code[-1]))
 
-    return key
+    logger.debug('------ frequencies ------')
+    logger.debug(freq)
+
+    return codewordmap
 
 # flatten the result and convert 2 dict
-key = list(chain.from_iterable(codewords(copy.deepcopy(text))))
+key = list(chain.from_iterable(codewords(text)))
 
-keydict = list_2_dict(key)
+keydict = utils.list_2_dict(key)
 
-print(f"Here are the duplicate codewords: {list_duplicates(list(keydict.values()))}")
+print(f"Here are the duplicate codewords: {utils.list_duplicates(list(keydict.values()))}")
 
-codewordmap = dict_swap_keys_and_values(keydict)
+codewordmap = utils.dict_swap_keys_and_values(keydict)
 
 logger.debug(text)
 logger.debug('Warning! codewordmap values are incorrect position and order')
@@ -103,12 +107,31 @@ logger.debug(list(codewordmap.keys()))
 #     logger.debug(codewordmap)
 #     print(decrypt(text, codewordmap))
 
-logFrequencyData(codewordmap)
+# logFrequencyData(codewordmap)
 
 if "part1" in filename:
     logger.debug("-- part 1 crack specific info --")
-    same =Counter(list(codewordmap.keys())) == Counter(['4502', '53177', '946320122', '85053600', '7171031', '87445918', '4504', '692473', '20', '638440', '57643', '7004062', '52381', '930424404', '84524991', '89411894', '4254', '376', '88527391', '23', '29', '361', '923921735', '4468', '636187', '971559793'])
+    same = Counter(list(codewordmap.keys())) == Counter(['4502', '53177', '946320122', '85053600', '7171031', '87445918', '4504', '692473', '20', '638440', '57643', '7004062', '52381', '930424404', '84524991', '89411894', '4254', '376', '88527391', '23', '29', '361', '923921735', '4468', '636187', '971559793'])
     if same:
         logger.debug("codewordmaps are the same")
     else:
         logger.debug("codewordmaps are different")
+
+# using the power of permutations and frequency analysis we could possibly determine what codewords belong to what letter
+keys = list(codewordmap.keys())
+values = list(codewordmap.values())
+all_permutations = permutations(values)
+
+# result = []
+for perm in all_permutations:
+    possible_mapping = dict(zip(keys, perm))
+    observed = getFrequency(possible_mapping)
+    expected = 
+
+    # https://www.geeksforgeeks.org/python-pearsons-chi-square-test/
+    stat, p = chisquare()
+    if p <= 0.05:
+        print('Dependent (reject H0)')
+    else:
+        print('Independent (H0 holds true)')
+    

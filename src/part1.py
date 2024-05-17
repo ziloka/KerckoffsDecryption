@@ -4,7 +4,7 @@ import logging
 import string
 from tabulate import tabulate
 import numpy as np
-from src.utils import list_2_dict, dict_swap_keys_and_values, dict_shift_keys
+import utils
 
 logger = logging.getLogger(__file__)
 logger.setLevel('DEBUG')
@@ -28,9 +28,9 @@ def decrypt(text: str, codewordmap: dict[str, str]):
         logger.debug(tabulate(list(zip(list(string.ascii_uppercase), codewordmap.keys())), headers=["Letter", "Codeword"]))
 
         text = text.replace(code, codewordmap[code], 1)
-        codewordmap = dict_shift_keys(codewordmap, int(code[-1]))
+        codewordmap = utils.dict_shift_keys(codewordmap, int(code[-1]))
     return text
 
-print(decrypt(encrypted, dict_swap_keys_and_values(list_2_dict(codewords))))
+print(decrypt(encrypted, utils.dict_swap_keys_and_values(utils.list_2_dict(codewords))))
 
 # THE CACHE IS LOCATED AT NORTH THIRTY NINE DEGREES TEN POINT FOUR EIGHT TWO YOULL ALSO NEED WEST SEVENTY SIX DEGREES FIFTY ONE POINT FOUR HUNDRED TWENTY TWO CACHE IS AB IS ON ON A FENCE
