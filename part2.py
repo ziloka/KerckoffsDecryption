@@ -4,7 +4,6 @@
 # Finally shorter codewords could "hide" inside longer codewords (such as having both codewords "321" and "53214") to confuse frequency analysis.
 # None of these additional countermeasures will be employed for these puzzles (at least intentionally, all keys have been generated randomly).
 
-import re
 import string
 import copy
 import logging
@@ -26,13 +25,13 @@ alphabet = list(string.ascii_uppercase)
 text = open("input/part2.txt", "r").read().strip()
 
 def codewords(encrypted):
+    start = 0
     key = [[letter, ''] for letter in alphabet]
-    hasempty = True
-    while any(char.isdigit() for char in encrypted) and hasempty:
-        result = re.search("\d+", encrypted)
-        start = result.start()
+    while any(char.isdigit() for char in encrypted) and start <= len(encrypted):
         length = int(encrypted[start])
         code = encrypted[start:start + length]
+
+        print(start, start+length)
 
         found = find_in_list_of_list(key, code)
         if type(found) == int:
@@ -45,11 +44,13 @@ def codewords(encrypted):
         key[i][1] = code
         letter = key[i][0]
 
-        # logger.debug(encrypted)
-        # logger.debug(f"[{letter} {code}] shift codewords by {code[-1]}")
-        # logger.debug(tabulate(key, headers=["Letter", "Codeword"]))
+        print(code)
+        logger.debug(encrypted)
+        logger.debug(f"[{letter} {code}] shift codewords by {code[-1]}")
+        logger.debug(tabulate(key, headers=["Letter", "Codeword"]))
 
-        encrypted = encrypted.replace(code, letter, 1)
+        start += length
+        # encrypted = encrypted.replace(code, letter, 1)
         list_shift_column(key, 1, int(code[-1]))
 
     return key
@@ -64,46 +65,41 @@ keydict = list_2_dict(key)
 codewordmap = dict_swap_keys_and_values(keydict)
 
 logger.debug(text)
+logger.debug(codewordmap)
 # print(substitutioncipher)
 
 # # # # Try shifting the keys (letters) in the dict times
 for i in range(0, len(alphabet)):
-    dict = dict_shift_values(codewordmap, 1)
+    codewordmap = dict_shift_values(codewordmap, 1)
     print(decrypt(text, codewordmap))
 
 # freq = {letter: 0 for letter in alphabet}
 
-def find_first_digit_index(s, start_index=0):
-    for index in range(start_index, len(s)):
-        if s[index].isdigit():
-            return index
-    return -1  # Return -1 if no digit is found
+# start = 0
+# data = []
+# textcopy = copy.deepcopy(text)
+# while any(char.isdigit() for char in textcopy) and start < len(textcopy):  
+#     length = int(textcopy[start])
+#     code = textcopy[start:start + length]
+#     letter = codewordmap[code]
 
-start = 0
-data = []
-textcopy = copy.deepcopy(text)
-while any(char.isdigit() for char in textcopy) and start < len(textcopy):  
-    length = int(textcopy[start])
-    code = textcopy[start:start + length]
-    letter = codewordmap[code]
+#     data.append({
+#         "letter": letter,
+#         "start": start,
+#         "end": start + length
+#     })
 
-    data.append({
-        "letter": letter,
-        "start": start,
-        "end": start + length
-    })
+#     start += length
+#     codewordmap = dict_shift_keys(codewordmap, int(code[-1]))
 
-    start += length
-    codewordmap = dict_shift_keys(codewordmap, int(code[-1]))
+# # logger.debug(tabulate(list(zip(freq.keys(), freq.values())), headers=["Letter", "Frequency"]))
+# logger.debug(data)
+# # print(codewordmap)
+# # logger.debug(text)
 
-# logger.debug(tabulate(list(zip(freq.keys(), freq.values())), headers=["Letter", "Frequency"]))
-logger.debug(data)
-# print(codewordmap)
-# logger.debug(text)
+# # print(data)
 
-# print(data)
-
-print("".join([item["letter"] for item in data]))
+# print("".join([item["letter"] for item in data]))
 
 # for letter, positions in data.items():
 #     for pos in positions:
