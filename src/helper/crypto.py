@@ -1,12 +1,15 @@
-import re
-import utils
+import copy
+import helper.utils as utils
 
-def decrypt(text: str, codewordmap: dict[str, str]):
-    while any(char.isdigit() for char in text):
-        result = re.search("\d+", text)
-        start = result.start()
-        length = int(text[start])
-        code = text[start:start + length]
-        text = text.replace(code, codewordmap[code], 1)
-        codewordmap = utils.dict_shift_keys(codewordmap, int(code[-1]))
-    return text
+def decrypt(encrypted, codewordmap):
+    codewordmap = copy.deepcopy(codewordmap)
+    decrypted = ""
+    start = 0
+    while any(char.isdigit() for char in encrypted) and start < len(encrypted):
+        length = int(encrypted[start])
+        code = encrypted[start:start + length]
+        letter = codewordmap[code]
+        decrypted += letter
+        utils.dict_shift_keys(codewordmap, int(code[-1]))
+        start += length
+    return decrypted

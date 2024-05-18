@@ -4,7 +4,7 @@ import logging
 import string
 from pathlib import Path
 from tabulate import tabulate
-import numpy as np
+from helper.crypto import decrypt
 import helper.utils as utils
 
 logger = logging.getLogger(Path(__file__).stem)
@@ -32,6 +32,7 @@ def decrypt(text: str, codewordmap: dict[str, str]):
         codewordmap = utils.dict_shift_keys(codewordmap, int(code[-1]))
     return text
 
-print(decrypt(encrypted, utils.dict_swap_keys_and_values(utils.list_2_dict(codewords))))
+codeworddict = utils.dict_swap_keys_and_values(utils.list_2_dict(codewords))
+print(decrypt(encrypted, codeworddict))
 
 # THE CACHE IS LOCATED AT NORTH THIRTY NINE DEGREES TEN POINT FOUR EIGHT TWO YOULL ALSO NEED WEST SEVENTY SIX DEGREES FIFTY ONE POINT FOUR HUNDRED TWENTY TWO CACHE IS AB IS ON ON A FENCE
