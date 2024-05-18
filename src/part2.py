@@ -5,16 +5,18 @@
 # None of these additional countermeasures will be employed for these puzzles (at least intentionally, all keys have been generated randomly).
 
 import string
+import copy
+from pathlib import Path
 import logging
 from collections import Counter
-from itertools import chain, permutations
+from itertools import chain
 
 from tabulate import tabulate
-from scipy.stats import chisquare
+# from scipy.stats import chisquare
 
 import helper.utils as utils
-
-logger = logging.getLogger(__file__)
+__name__
+logger = logging.getLogger(Path(__file__).stem)
 logger.setLevel('DEBUG')
 filehandler_dbg = logging.FileHandler(logger.name + "-debug.log", mode='w')
 filehandler_dbg.setLevel('DEBUG')
@@ -43,9 +45,11 @@ def getFrequency(codewordmap):
         start += length
         codewordmap = utils.dict_shift_keys(codewordmap, int(code[-1]))
 
-    # logger.debug(tabulate(list(zip(freq.keys(), freq.values())), headers=["Letter", "Frequency"]))
-    # logger.debug(f"There are {sum(freq.values())} characters")
-    # logger.debug(data)
+    logger.debug('------ getFrequency ----------')
+    logger.debug(tabulate(list(zip(freq.keys(), freq.values())), headers=["Letter", "Frequency"]))
+    logger.debug(f"There are {sum(freq.values())} characters")
+    logger.debug(data)
+    logger.debug('-------------------------')
     # # print(codewordmap)
     # logger.debug(text)
     return freq
@@ -70,17 +74,32 @@ def codewords(encrypted):
         freq[letter]+=1
 
         # print(code)
-        # logger.debug(encrypted)
-        # logger.debug(f"[{letter} {code} freq: {freq[letter]}] shift codewords by {code[-1]}")
-        # logger.debug(tabulate(codewordmap, headers=["Letter", "Codeword"]))
+        # logger.debug('------ encrypted ------')
+        logger.debug(encrypted)
+        logger.debug(f"[{letter} {code} freq: {freq[letter]}] shift codewords by {code[-1]}")
+        logger.debug(tabulate(codewordmap, headers=["Letter", "Codeword"]))
 
         start += length
         utils.list_shift_column(codewordmap, 1, int(code[-1]))
 
     logger.debug('------ frequencies ------')
     logger.debug(freq)
+    logger.debug('-------------------------')
 
     return codewordmap
+
+def decrypt(encrypted, codewordmap):
+    codewordmap = copy.deepcopy(codewordmap)
+    decrypted = ""
+    start = 0
+    while any(char.isdigit() for char in encrypted) and start < len(encrypted):
+        length = int(encrypted[start])
+        code = encrypted[start:start + length]
+        letter = codewordmap[code]
+        decrypted += letter
+        utils.dict_shift_keys(codewordmap, int(code[-1]))
+        start += length
+    return decrypted
 
 # flatten the result and convert 2 dict
 key = list(chain.from_iterable(codewords(text)))
@@ -96,18 +115,6 @@ logger.debug('Warning! codewordmap values are incorrect position and order')
 logger.debug(codewordmap)
 logger.debug('Codewords might be wrong double check to make sure')
 logger.debug(list(codewordmap.keys()))
-# print(codewordmap)
-# print(substitutioncipher)
-
-# # # # Try shifting the keys (letters) in the dict times
-# logger.debug('--------- Rotating code"wordmap ------------')
-
-# for i in range(0, len(alphabet)):
-#     codewordmap = dict_shift_keys(codewordmap, 1)
-#     logger.debug(codewordmap)
-#     print(decrypt(text, codewordmap))
-
-# logFrequencyData(codewordmap)
 
 if "part1" in filename:
     logger.debug("-- part 1 crack specific info --")
@@ -117,21 +124,8 @@ if "part1" in filename:
     else:
         logger.debug("codewordmaps are different")
 
-# using the power of permutations and frequency analysis we could possibly determine what codewords belong to what letter
-keys = list(codewordmap.keys())
-values = list(codewordmap.values())
-all_permutations = permutations(values)
+# should give you subsitution cipher
+logger.debug(decrypt(text, codewordmap))
 
-# result = []
-for perm in all_permutations:
-    possible_mapping = dict(zip(keys, perm))
-    observed = getFrequency(possible_mapping)
-    expected = 
-
-    # https://www.geeksforgeeks.org/python-pearsons-chi-square-test/
-    stat, p = chisquare()
-    if p <= 0.05:
-        print('Dependent (reject H0)')
-    else:
-        print('Independent (H0 holds true)')
-    
+def modified_kasiski_examination():
+    pass

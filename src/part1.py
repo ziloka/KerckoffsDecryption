@@ -2,11 +2,12 @@
 import re
 import logging
 import string
+from pathlib import Path
 from tabulate import tabulate
 import numpy as np
 import helper.utils as utils
 
-logger = logging.getLogger(__file__)
+logger = logging.getLogger(Path(__file__).stem)
 logger.setLevel('DEBUG')
 filehandler_dbg  = logging.FileHandler(logger.name + "-debug.log", mode='w')
 filehandler_dbg.setLevel('DEBUG')
