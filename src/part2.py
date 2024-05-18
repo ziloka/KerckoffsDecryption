@@ -5,17 +5,13 @@
 # None of these additional countermeasures will be employed for these puzzles (at least intentionally, all keys have been generated randomly).
 
 import string
-import copy
 from pathlib import Path
 import logging
 from collections import Counter
-from itertools import chain
-
-from tabulate import tabulate
 
 from helper.crypto import decrypt
 import helper.utils as utils
-from helper.polysub import kasiski
+# from helper.polysub import kasiski
 
 logger = logging.getLogger(Path(__file__).stem)
 logger.setLevel('DEBUG')
@@ -27,107 +23,18 @@ alphabet = list(string.ascii_uppercase)
 filename = "input/part1.txt"
 ciphertext = open(filename, "r").read().strip()
 
-def codewords(encrypted):
+def getCodewords(encrypted):
     start = 0
-    codewordmap = [[letter, ''] for letter in alphabet]
-    # freq = {letter: 0 for letter in alphabet}
+    codewords = set()
     while any(char.isdigit() for char in encrypted) and start < len(encrypted):
         length = int(encrypted[start])
         code = encrypted[start:start + length]
-
-        # print(start, start+length)
-
-        found = utils.find_in_list_of_list(codewordmap, code)
-        if type(found) == int and found == -1:
-            found = utils.find_in_list_of_list(codewordmap, '')
-        i = found[0]
-
-        codewordmap[i][1] = code
-        letter = codewordmap[i][0]
-        # freq[letter]+=1
-
-        # print(code)
-        # logger.debug('------ encrypted ------')
-        # logger.debug(encrypted)
-        # logger.debug(f"[{letter} {code} freq: {freq[letter]}] shift codewords by {code[-1]}")
-        # logger.debug(tabulate(codewordmap, headers=["Letter", "Codeword"]))
-
+        codewords.add(code)
         start += length
-        utils.list_shift_column(codewordmap, 1, int(code[-1]))
+    return list(codewords)
 
-    # logger.debug('------ frequencies ------')
-    # logger.debug(freq)
-    # logger.debug('-------------------------')
-
-    return codewordmap
-
-# flatten the result and convert 2 dict
-key = list(chain.from_iterable(codewords(ciphertext)))
-
-keydict = utils.list_2_dict(key)
-
-# print(f"Here are the duplicate codewords: {utils.list_duplicates(list(keydict.values()))}")
-
-# codewordmap = utils.dict_swap_keys_and_values(keydict)
-
-# print(ciphertext)
-# logger.debug(ciphertext)
-# logger.debug('Warning! codewordmap values are incorrect position and order')
-# logger.debug(codewordmap)
-# logger.debug('Codewords might be wrong double check to make sure')
-# logger.debug(list(codewordmap.keys()))
-
-# if "part1" in filename:
-#     logger.debug("-- part 1 crack specific info --")
-#     same = Counter(list(codewordmap.keys())) == Counter(['4502', '53177', '946320122', '85053600', '7171031', '87445918', '4504', '692473', '20', '638440', '57643', '7004062', '52381', '930424404', '84524991', '89411894', '4254', '376', '88527391', '23', '29', '361', '923921735', '4468', '636187', '971559793'])
-#     if same:
-#         logger.debug("codewordmaps are the same")
-#     else:
-#         logger.debug("codewordmaps are different")
-
-# monoalphabetic_cipher = decrypt(text, codewordmap)
-
-# # should give you subsitution cipher
-# # logger.debug(cyphertext)
-# print(monoalphabetic_cipher)
-
-# freq.restore_key(cyphertext, 26)
-
-
-
-
-from collections import Counter
-
-# Initial key mapping as given
-key_mapping = keydict
-# key_mapping = {
-#     'A': "89411894",
-#     'B': "52381",
-#     'C': "88527391",
-#     'D': "946320122",
-#     'E': "923921735",
-#     'F': "4254",
-#     'G': "4504",
-#     'H': "7171031",
-#     'I': "692473",
-#     'J': "971559793",
-#     'K': "638440",
-#     'L': "930424404",
-#     'M': "84524991",
-#     'N': "87445918",
-#     'O': "57643",
-#     'P': "7004062",
-#     'Q': "376",
-#     'R': "29",
-#     'S': "4468",
-#     'T': "85053600",
-#     'U': "361",
-#     'V': "636187",
-#     'W': "20",
-#     'X': "23",
-#     'Y': "53177",
-#     'Z': "4502"
-# }
+key_mapping = dict(zip(alphabet, getCodewords(ciphertext)))
+print(key_mapping)
 
 # Frequency of letters in the English language
 english_frequency = {
@@ -145,13 +52,16 @@ def extract_segments(ciphertext, key_mapping):
     index = 0
     
     while index < len(ciphertext):
+        found = False
         for codeword in key_mapping.values():
             length = int(codeword[0])
             if ciphertext[index:index+length] == codeword:
                 segments.append(codeword)
                 index += length
+                found = True
                 break
-        else:
+        if not found:
+            print(f"start: {index}, end: {index+length}, {ciphertext[index:index+length]}")
             raise ValueError("No matching codeword found in the initial key mapping.")
     
     return segments
@@ -182,9 +92,9 @@ def apply_mapping(segments, mapping):
     return plaintext
 
 # Example usage
-# ciphertext = ""
 try:
     segments = extract_segments(ciphertext, key_mapping)
+    print("extracted segments")
     ciphertext_frequency = frequency_analysis(segments)
     mapping = map_frequencies(ciphertext_frequency, english_frequency)
     refined_text = apply_mapping(segments, mapping)

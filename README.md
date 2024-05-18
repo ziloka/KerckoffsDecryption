@@ -7,6 +7,7 @@ https://en.wikipedia.org/wiki/Vigen%C3%A8re_cipher#Cryptanalysis
 - Kasiski examination doesn't work because every single time the alpha shifts a different number
 - [Index of concidence is used to determine if a text was created using single alphabet or multiple alphabets](https://sites.google.com/site/cryptocrackprogram/user-guide/statistics-tab/index-of-coincidence)
 - https://crypto.stackexchange.com/a/1847
+- https://stackoverflow.com/questions/71406824/improved-vigenere-cipher
 
 useful tips for troubleshooting your code
 
@@ -22,7 +23,10 @@ poetry run python -c "print(open('input/codewords.txt').read().strip().split('\n
 ```
 
 https://www.geocaching.com/geocache/GC9PAWZ_kerckhoffs-part-2
+- https://www.guballa.de/vigenere-solver
 - https://github.com/ichantzaras/polysub-cryptanalysis
+- https://crypto.stackexchange.com/questions/39463/can-a-vigen%c3%a8re-cipher-be-solved-if-the-alphabet-is-modified-custom?noredirect=1&lq=1
+
 Run
 ```
 python attack.py
