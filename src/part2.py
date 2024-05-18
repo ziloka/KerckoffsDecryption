@@ -8,10 +8,10 @@ import string
 from pathlib import Path
 import logging
 from collections import Counter
+from timeit import default_timer as timer
 
 from helper.crypto import decrypt
 import helper.utils as utils
-# from helper.polysub import kasiski
 
 logger = logging.getLogger(Path(__file__).stem)
 logger.setLevel('DEBUG')
@@ -26,14 +26,16 @@ ciphertext = open(filename, "r").read().strip()
 def getCodewords(encrypted):
     start = 0
     codewords = set()
-    while any(char.isdigit() for char in encrypted) and start < len(encrypted):
+    while start < len(encrypted):
         length = int(encrypted[start])
         code = encrypted[start:start + length]
         codewords.add(code)
         start += length
     return list(codewords)
 
+start = timer()
 key_mapping = dict(zip(alphabet, getCodewords(ciphertext)))
+print(f"It took {(timer()-start)*1000:.2f}ms to get codewords.")
 print(key_mapping)
 
 # Frequency of letters in the English language
