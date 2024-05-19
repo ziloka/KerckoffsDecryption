@@ -1,43 +1,21 @@
-## Notes
-- this seems really similar to a modified version of [Vigenère cipher](https://en.wikipedia.org/wiki/Vigen%C3%A8re_cipher)
-https://en.wikipedia.org/wiki/Vigen%C3%A8re_cipher#Cryptanalysis
+# General Notes
 - [polyalphabetic substitution cipher](https://pi.math.cornell.edu/~mec/2003-2004/cryptography/polyalpha/polyalpha.html) variant
-~~- [Kasiski examination](https://en.wikipedia.org/wiki/Kasiski_examination) is one way to crack type of ciphers (to determine the length of the key)~~
-~~- [Kasiski examination implementation](https://github.com/ichantzaras/polysub-cryptanalysis/blob/master/kasiski.py#L39)~~
-- Kasiski examination doesn't work because every single time the alpha shifts a different number
-- [Index of concidence is used to determine if a text was created using single alphabet or multiple alphabets](https://sites.google.com/site/cryptocrackprogram/user-guide/statistics-tab/index-of-coincidence)
-- https://crypto.stackexchange.com/a/1847
-- https://stackoverflow.com/questions/71406824/improved-vigenere-cipher
-
-useful tips for troubleshooting your code
-
-use the following regular expression when searching through encrypted text
-```
-(?<=\D\B)\d+
-```
+- [autokey cipher](https://en.wikipedia.org/wiki/Autokey_cipher)
 
 https://www.geocaching.com/geocache/GC9NT53_kerckhoffs-part-1
-get codewords
-```bash
-poetry run python -c "print(open('input/codewords.txt').read().strip().split('\n')[1::2])"
-```
 
 https://www.geocaching.com/geocache/GC9PAWZ_kerckhoffs-part-2
-- https://www.guballa.de/vigenere-solver
-- https://github.com/ichantzaras/polysub-cryptanalysis
-- https://crypto.stackexchange.com/questions/39463/can-a-vigen%c3%a8re-cipher-be-solved-if-the-alphabet-is-modified-custom?noredirect=1&lq=1
 
-Run
-```
-python attack.py
-```
-https://chatgpt.com/share/1c6e6c14-740c-422f-8ce5-57e0950b62e6
+## Cryptanalysis for part 2
 
-<!-- - use a [word counter](https://wordcounter.net/character-count) to check if the frequencies from part1 are the same by using the part2 program to crack
-- https://pypi.org/project/subbreaker/
-- https://bionsgadgets.appspot.com/ww_forms/aristo_pat_web_worker3.html
-- https://bionsgadgets.appspot.com/gadget_forms/solve_cipher_only.html
-Calculate letter frequency, if letter frequency is not expected, eg A, E, and X are the most common letters by a small margin, shift  -->
+> The first digit tells you how long the codeword is.
+1. This part is huge and you can break up the text into codewords right from the start. 
+2. the rest is solved more or less as an [autokey cipher](https://en.wikipedia.org/wiki/Autokey_cipher), since the last digit of a codeword gives you the key for the next codeword
+
+### Things to think about the cipher
+- study repetitions and near-repetitions in the ciphertext
+- what will happen when a plaintext word is repeated, considering that the codewords shift each time that word is used?
+- cipher might even show isomorphic sequences
 
 https://www.geocaching.com/geocache/GC9PC6T_kerckhoffs-part-3
 
