@@ -1,10 +1,9 @@
-# prompt: write a python script that can decrypt autokey ciphers without the key using frequency analysis
-# make sure you try your hardest to make the most accurate, effective script
-
+# prompt: write the most advanced accurate effective python script that can decrypt autokey ciphers without the key using frequency analysis
 # chatgpt (gpt-4o) generated the following code
 
 import string
 from collections import Counter
+from timeit import default_timer as timer
 
 # Frequency of English letters
 ENGLISH_FREQ = {
@@ -65,10 +64,18 @@ def crack_autokey(ciphertext):
 
     return best_guess, best_key
 
-# Example usage
-# plaintext: dCodeAutoclave
-# initial keyword: X
-ciphertext = "aFqrhEunhqnlvz"
-plaintext, key = crack_autokey(ciphertext)
-print(f"Decrypted Text: {plaintext}")
-print(f"Guessed Key: {key}")
+
+def main():
+
+    # Example usage
+    # plaintext: dCodeAutoclave
+    # initial keyword: X
+    ciphertext = "aFqrhEunhqnlvz"
+    start = timer()
+    plaintext, key = crack_autokey(ciphertext)
+    print(f"Guessed Key: {key}")
+    print(f"Decrypted Text: {plaintext}")
+    print(f"took {(timer()-start)*1000:.2f}ms")
+    
+if __name__ == "__main__":
+    main()

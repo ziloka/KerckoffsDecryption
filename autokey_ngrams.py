@@ -71,10 +71,10 @@ def main():
     ciphertext = "aFqrhEunhqnlvz"
     start = timer()
 
-    # print("Ciphertext:", ciphertext)
+    print("Ciphertext:", ciphertext)
 
     best_key = hill_climbing(ciphertext)
-    # print("Guessed Key:", best_key)
+    print("Guessed Key:", best_key)
 
     decrypted_text = decrypt_autokey(ciphertext, best_key)
     print(f"took {(timer()-start)*1000:.2f}ms")
