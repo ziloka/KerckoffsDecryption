@@ -1,20 +1,12 @@
 # https://chatgpt.com/share/3b4b4233-bc13-4b20-ac84-de5f680be82e
 
 import string
-from collections import Counter
 import math
-
-# Frequency of letters in English language
-ENGLISH_FREQ = {
-    'E': 12.70, 'T': 9.06, 'A': 8.17, 'O': 7.51, 'I': 6.97, 'N': 6.75,
-    'S': 6.33, 'H': 6.09, 'R': 5.99, 'D': 4.25, 'L': 4.03, 'C': 2.78,
-    'U': 2.76, 'M': 2.41, 'W': 2.36, 'F': 2.23, 'G': 2.02, 'Y': 1.97,
-    'P': 1.93, 'B': 1.29, 'V': 0.98, 'K': 0.77, 'J': 0.15, 'X': 0.15,
-    'Q': 0.10, 'Z': 0.07
-}
+import random
+from timeit import default_timer as timer
 
 # Load English n-gram probabilities for more accurate frequency analysis
-with open('quadgrams.txt', 'r') as f:
+with open('quadgrams.txt', 'r', encoding='utf-8') as f:
     QUADGRAMS = {line.split()[0]: math.log10(float(line.split()[1])) for line in f}
 
 def quadgram_score(text):
@@ -44,7 +36,7 @@ def decrypt_autokey(ciphertext, key):
             key_extended += decrypted_char  # Autokey mechanism
         else:
             decrypted_text.append(char)
-    
+
     return ''.join(decrypted_text)
 
 def hill_climbing(ciphertext, max_key_length=20, iterations=1000):
@@ -61,7 +53,7 @@ def hill_climbing(ciphertext, max_key_length=20, iterations=1000):
             position = random.randint(0, key_length - 1)
             candidate_key[position] = chr((ord(candidate_key[position]) - ord('A') + random.randint(1, 25)) % 26 + ord('A'))
             candidate_key_text = ''.join(candidate_key)
-            
+
             decrypted_text = decrypt_autokey(ciphertext, candidate_key_text)
             score = quadgram_score(decrypted_text)
 
@@ -70,22 +62,23 @@ def hill_climbing(ciphertext, max_key_length=20, iterations=1000):
                 best_key = candidate_key_text
                 best_score = score
                 key = candidate_key
-    
+
     return best_key
 
 def main():
     # plaintext: dCodeAutoclave
     # initial keyword: X
     ciphertext = "aFqrhEunhqnlvz"
-    
+    start = timer()
+
     print("Ciphertext:", ciphertext)
-    
+
     best_key = hill_climbing(ciphertext)
     print("Guessed Key:", best_key)
-    
+
     decrypted_text = decrypt_autokey(ciphertext, best_key)
     print("Decrypted Text:", decrypted_text)
+    print(f"took {(timer()-start)*1000:.2f}ms")
 
 if __name__ == "__main__":
-    import random
     main()

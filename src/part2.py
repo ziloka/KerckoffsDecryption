@@ -13,10 +13,10 @@ filehandler_dbg.setLevel('DEBUG')
 logger.addHandler(filehandler_dbg)
 
 alphabet = list(string.ascii_uppercase)
-filename = "input/part1.txt"
-ciphertext = open(filename, "r").read().strip()
+FILENAME = "input/part1.txt"
+ciphertext = open(FILENAME, "r", encoding='utf-8').read().strip()
 
-def getCodewords(encrypted):
+def get_codewords(encrypted):
     start = 0
     codewords = set()
     while start < len(encrypted):
@@ -26,9 +26,9 @@ def getCodewords(encrypted):
         start += length
     return list(codewords)
 
-start = timer()
-codeword2letter = utils.dict_swap_keys_and_values(dict(zip(alphabet, getCodewords(ciphertext))))
-print(f"It took {(timer()-start)*1000:.2f}ms to get codewords.")
+perf_start = timer()
+codeword2letter = utils.dict_swap_keys_and_values(dict(zip(alphabet, get_codewords(ciphertext))))
+print(f"It took {(timer()-perf_start)*1000:.2f}ms to get codewords.")
 
 def decrypt_wo_key(encrypted, codeword2letter):
     codeword2letter = copy.deepcopy(codeword2letter)
@@ -38,7 +38,7 @@ def decrypt_wo_key(encrypted, codeword2letter):
         length = int(encrypted[start])
         code = encrypted[start:start + length]
         # TODO: step stating it is unrealistic that "x" is next to "z"
-        # Use hill climbing to find the best key
+        # Use hill climbing algo to find the best key
         plaintext += codeword2letter[code]
         codeword2letter = utils.dict_shift_keys(codeword2letter, int(code[-1]))
         start += length

@@ -1,8 +1,10 @@
+#!/usr/bin/python3
+
 from helper.crypto import encrypt, decrypt
 import helper.utils as utils
 
-encrypted = open("input/part1.txt", "r").read()
-codewords = open("input/codewords.txt", "r").read().splitlines()
+encrypted = open("input/part1.txt", 'r', encoding='utf-8').read()
+codewords = open("input/codewords.txt", "r", encoding='utf-8').read().splitlines()
 
 letter2codeword = utils.list_2_dict(codewords)
 codeword2letter = utils.dict_swap_keys_and_values(letter2codeword)
