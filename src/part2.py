@@ -7,10 +7,8 @@
 import string
 from pathlib import Path
 import logging
-from collections import Counter
 from timeit import default_timer as timer
 
-from helper.crypto import decrypt
 import helper.utils as utils
 
 logger = logging.getLogger(Path(__file__).stem)
