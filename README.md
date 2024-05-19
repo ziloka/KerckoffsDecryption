@@ -8,9 +8,7 @@
 
 https://www.geocaching.com/geocache/GC9NT53_kerckhoffs-part-1
 
-https://www.geocaching.com/geocache/GC9PAWZ_kerckhoffs-part-2
-
-## Cryptanalysis for part 2
+## Cryptanalysis for [Kerckhoffs part 2](https://www.geocaching.com/geocache/GC9PAWZ_kerckhoffs-part-2)
 
 > The first digit tells you how long the codeword is.
 1. This part is huge and you can break up the text into codewords right from the start. 
@@ -33,4 +31,6 @@ Might be helpful for determine bigrams, trigrams, quadgrams (for frequency analy
 https://gitlab.com/guballa/SubstitutionBreaker/-/blob/93dcc269efbfe6c62c3a93a6ce66077d6ff335fb/subbreaker/breaker.py#L321-380
 solver cracks substitution ciphers through dicitionary of quadgrams
 
-https://www.geocaching.com/geocache/GC9PC6T_kerckhoffs-part-3
+https://github.com/gibsjose/statistical-attack/tree/master
+
+### [Kercekoffs part 3](https://www.geocaching.com/geocache/GC9PC6T_kerckhoffs-part-3)

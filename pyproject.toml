@@ -13,7 +13,6 @@ numpy = "^1.26.4"
 scipy = "^1.13.0"
 subbreaker = "^1.2.0"
 
-
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
