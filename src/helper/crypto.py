@@ -1,23 +1,23 @@
 import copy
 import helper.utils as utils
 
-def encrypt(plaintext, codewordmap):
-    codewordmap = copy.deepcopy(codewordmap)
+def encrypt(plaintext, letter2codeword):
+    letter2codeword = copy.deepcopy(letter2codeword)
     encrypted = ""
     for letter in plaintext:
-        code = codewordmap[letter]
+        code = letter2codeword[letter]
         encrypted += code
-        codewordmap = utils.dict_shift_values(codewordmap, int(code[-1]))
+        letter2codeword = utils.dict_shift_values(letter2codeword, int(code[-1]))
     return encrypted
 
-def decrypt(encrypted, codewordmap):
-    codewordmap = copy.deepcopy(codewordmap)
+def decrypt(encrypted, codeword2letter):
+    codeword2letter = copy.deepcopy(codeword2letter)
     plaintext = ""
     start = 0
     while start < len(encrypted):
         length = int(encrypted[start])
         code = encrypted[start:start + length]
-        plaintext += codewordmap[code]
-        codewordmap = utils.dict_shift_keys(codewordmap, int(code[-1]))
+        plaintext += codeword2letter[code]
+        codeword2letter = utils.dict_shift_keys(codeword2letter, int(code[-1]))
         start += length
     return plaintext
