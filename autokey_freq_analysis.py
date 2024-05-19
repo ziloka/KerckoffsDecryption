@@ -1,6 +1,7 @@
-# write a python script that can decrypt autokey ciphers without the key using frequency analysis
-
+# prompt: write a python script that can decrypt autokey ciphers without the key using frequency analysis
 # make sure you try your hardest to make the most accurate, effective script
+
+# chatgpt (gpt-4o) generated the following code
 
 import string
 from collections import Counter
@@ -52,7 +53,7 @@ def crack_autokey(ciphertext):
     best_guess = ""
     best_chi_squared = float('inf')
 
-    for key_length in range(1, 10):  # Trying different key lengths
+    for _ in range(1, 10):  # Trying different key lengths
         for key in (chr(i) for i in range(ord('A'), ord('Z')+1)):
             decrypted = decrypt_autokey(ciphertext, key)
             text_freq = Counter(decrypted)
