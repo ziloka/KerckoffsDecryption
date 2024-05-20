@@ -13,7 +13,6 @@ ENGLISH_FREQ = {
     'K': 0.69, 'X': 0.17, 'Q': 0.11, 'J': 0.10, 'Z': 0.07
 }
 
-
 # Function to get the chi-squared statistic
 def chi_squared_statistic(text_freq, english_freq, text_length):
     chi_squared = 0.0
@@ -48,12 +47,14 @@ def mutate_key(key, mutation_rate):
     return ''.join(key_list)
 
 def crossover_keys(key1, key2):
-    pos = random.randint(1, len(key1) - 1)
+    # print(min(len(key1), len(key2)) - 1)
+    pos = random.randint(1, min(len(key1), len(key2)))
     return key1[:pos] + key2[pos:]
 
-def generate_initial_population(ciphertext, population_size, key_length):
+def generate_initial_population(ciphertext, population_size, max_key_length):
     population = []
     for _ in range(population_size):
+        key_length = random.randint(1, max_key_length)
         key = ''.join(random.choice(string.ascii_uppercase) for _ in range(key_length))
         decrypted = decrypt_autokey(ciphertext, key)
         text_freq = Counter(decrypted)
@@ -61,8 +62,8 @@ def generate_initial_population(ciphertext, population_size, key_length):
         population.append((key, chi_squared))
     return population
 
-def genetic_algorithm(ciphertext, key_length, population_size, generations, mutation_rate):
-    population = generate_initial_population(ciphertext, population_size, key_length)
+def genetic_algorithm(ciphertext, max_key_length, population_size, generations, mutation_rate):
+    population = generate_initial_population(ciphertext, population_size, max_key_length)
     best_key, best_chi_squared = min(population, key=lambda x: x[1])
 
     for generation in range(generations):
@@ -90,37 +91,10 @@ def genetic_algorithm(ciphertext, key_length, population_size, generations, muta
 
     return best_key
 
-def local_search(ciphertext, key):
-    best_key = key
-    best_chi_squared = chi_squared_statistic(Counter(decrypt_autokey(ciphertext, key)), ENGLISH_FREQ, len(ciphertext))
-    improved = True
-
-    while improved:
-        improved = False
-        for i in range(len(key)):
-            for shift in range(26):
-                new_key = list(best_key)
-                new_key[i] = chr((ord(new_key[i]) - ord('A') + shift) % 26 + ord('A'))
-                new_key = ''.join(new_key)
-                decrypted = decrypt_autokey(ciphertext, new_key)
-                text_freq = Counter(decrypted)
-                chi_squared = chi_squared_statistic(text_freq, ENGLISH_FREQ, len(decrypted))
-                if chi_squared < best_chi_squared:
-                    best_chi_squared = chi_squared
-                    best_key = new_key
-                    improved = True
-                    break
-            if improved:
-                break
-
-    return best_key
-
 def parallel_genetic_algorithm(ciphertext, max_key_length, population_size, generations, mutation_rate, num_processes):
     with Pool(num_processes) as pool:
-        key_lengths = [max_key_length] * num_processes
-        results = pool.starmap(genetic_algorithm, [(ciphertext, kl, population_size, generations, mutation_rate) for kl in key_lengths])
+        results = pool.starmap(genetic_algorithm, [(ciphertext, max_key_length, population_size, generations, mutation_rate) for _ in range(num_processes)])
     best_key = min(results, key=lambda key: chi_squared_statistic(Counter(decrypt_autokey(ciphertext, key)), ENGLISH_FREQ, len(ciphertext)))
-    best_key = local_search(ciphertext, best_key)
     return best_key
 
 def crack_autokey(ciphertext, max_key_length=20, population_size=100, generations=500):
@@ -132,16 +106,9 @@ def crack_autokey(ciphertext, max_key_length=20, population_size=100, generation
 if __name__ == "__main__":
     freeze_support()
     # Example usage
-    # key is password
     ciphertext = "IHWKYVFREZJSEHRSHSXBWIOXBRGNUAPTTWIZENINPWCPONWBNVIFEKLMDSSHWGEMICLLGFDOGOELSTZRTTSIAQYKEKSMZSJUEKHMRRLIIFSIVRMOMOGEEHNUMXONULHGMIKNABUXXNYSTZLSUTAEE"
     start = timer()
-    best_decrypted, best_key = crack_autokey(ciphertext)
-    print(f"took {(timer()-start)*1000:.2f}ms")
+    best_decrypted, best_key = crack_autokey(ciphertext, max_key_length=20, population_size=100, generations=500)
+    print(f"Time taken: {(timer()-start)*1000:.2f}ms")
     print("Best Decrypted Text:", best_decrypted)
-    print("Chi squared statistic:", chi_squared_statistic(Counter(best_decrypted), ENGLISH_FREQ, len(best_decrypted)))
     print("Best Key:", best_key)
-
-    print()
-    plaintext = decrypt_autokey(ciphertext, "PASSWORD")
-    print("actual answer: ", plaintext)
-    print("Chi squared statistic:", chi_squared_statistic(Counter(plaintext), ENGLISH_FREQ, len(plaintext)))
