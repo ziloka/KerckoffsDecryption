@@ -13,6 +13,7 @@ ENGLISH_FREQ = {
     'K': 0.69, 'X': 0.17, 'Q': 0.11, 'J': 0.10, 'Z': 0.07
 }
 
+
 # Function to get the chi-squared statistic
 def chi_squared_statistic(text_freq, english_freq, text_length):
     chi_squared = 0.0
@@ -84,7 +85,33 @@ def genetic_algorithm(ciphertext, key_length, population_size, generations, muta
             best_key, best_chi_squared = current_best_key, current_best_chi_squared
         
         # Adaptive mutation rate
-        mutation_rate = max(0.01, mutation_rate * 0.95 if generation % 50 == 0 else mutation_rate)
+        if generation % 50 == 0:
+            mutation_rate *= 0.95
+
+    return best_key
+
+def local_search(ciphertext, key):
+    best_key = key
+    best_chi_squared = chi_squared_statistic(Counter(decrypt_autokey(ciphertext, key)), ENGLISH_FREQ, len(ciphertext))
+    improved = True
+
+    while improved:
+        improved = False
+        for i in range(len(key)):
+            for shift in range(26):
+                new_key = list(best_key)
+                new_key[i] = chr((ord(new_key[i]) - ord('A') + shift) % 26 + ord('A'))
+                new_key = ''.join(new_key)
+                decrypted = decrypt_autokey(ciphertext, new_key)
+                text_freq = Counter(decrypted)
+                chi_squared = chi_squared_statistic(text_freq, ENGLISH_FREQ, len(decrypted))
+                if chi_squared < best_chi_squared:
+                    best_chi_squared = chi_squared
+                    best_key = new_key
+                    improved = True
+                    break
+            if improved:
+                break
 
     return best_key
 
@@ -93,14 +120,14 @@ def parallel_genetic_algorithm(ciphertext, max_key_length, population_size, gene
         key_lengths = [max_key_length] * num_processes
         results = pool.starmap(genetic_algorithm, [(ciphertext, kl, population_size, generations, mutation_rate) for kl in key_lengths])
     best_key = min(results, key=lambda key: chi_squared_statistic(Counter(decrypt_autokey(ciphertext, key)), ENGLISH_FREQ, len(ciphertext)))
+    best_key = local_search(ciphertext, best_key)
     return best_key
 
-def crack_autokey(ciphertext, max_key_length=20, population_size=500, generations=1000):
+def crack_autokey(ciphertext, max_key_length=20, population_size=100, generations=500):
     num_processes = cpu_count()
     best_key = parallel_genetic_algorithm(ciphertext, max_key_length, population_size, generations, 0.05, num_processes)
     best_decrypted = decrypt_autokey(ciphertext, best_key)
     return best_decrypted, best_key
-
 
 if __name__ == "__main__":
     freeze_support()
