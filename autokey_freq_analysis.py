@@ -4,7 +4,9 @@
 # chatgpt (gpt-4o) generated the following code
 
 import string
+import random
 from collections import Counter
+from timeit import default_timer as timer
 
 # Frequency of English letters
 ENGLISH_FREQ = {
@@ -48,13 +50,19 @@ def decrypt_autokey(ciphertext, key):
     return decrypted
 
 # Main function to crack the Autokey cipher
-def crack_autokey(ciphertext):
+def crack_autokey(ciphertext, max_key_length=20, iterations=1000):
     ciphertext = ciphertext.upper()
     best_guess = ""
     best_chi_squared = float('inf')
 
-    for _ in range(1, 10):  # Trying different key lengths
-        for key in (chr(i) for i in range(ord('A'), ord('Z')+1)):
+    for key_length in range(1, max_key_length+1):  # Trying different key lengths
+        key = "A"
+        for _ in range(iterations):
+            # print(key, type(key))
+            candidate_key = key
+            position = random.randint(0, key_length - 1)
+            candidate_key[position] = chr((ord(candidate_key[position]) - ord('A') + random.randint(1, 25)) % 26 + ord('A'))
+            
             decrypted = decrypt_autokey(ciphertext, key)
             text_freq = Counter(decrypted)
             chi_squared = chi_squared_statistic(text_freq, ENGLISH_FREQ, len(decrypted))
@@ -69,6 +77,8 @@ def crack_autokey(ciphertext):
 # plaintext: dCodeAutoclave
 # initial keyword: X
 ciphertext = "aFqrhEunhqnlvz"
+start = timer()
 plaintext, key = crack_autokey(ciphertext)
-print(f"Decrypted Text: {plaintext}")
+print(f"took {(timer()-start)*1000:.2f}ms")
 print(f"Guessed Key: {key}")
+print(f"Decrypted Text: {plaintext}")
