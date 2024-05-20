@@ -112,3 +112,11 @@ if __name__ == "__main__":
     print(f"Time taken: {(timer()-start)*1000:.2f}ms")
     print("Best Decrypted Text:", best_decrypted)
     print("Best Key:", best_key)
+    print("Chi Squared:", chi_squared_statistic(Counter(best_decrypted), ENGLISH_FREQ, len(best_decrypted)))
+
+    print()
+    plaintext = decrypt_autokey(ciphertext, "PASSWORD")
+    print("Plaintext:", plaintext)
+    print("Ciphertext:", ciphertext)
+    print("Key:", "PASSWORD")
+    print("Chi Squared:", chi_squared_statistic(Counter(plaintext), ENGLISH_FREQ, len(plaintext)))
