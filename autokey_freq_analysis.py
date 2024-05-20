@@ -56,27 +56,26 @@ def crack_autokey(ciphertext, max_key_length=20, iterations=1000):
     best_chi_squared = float('inf')
 
     for key_length in range(1, max_key_length+1):  # Trying different key lengths
-        key = "A"
+        key = "A" * key_length
         for _ in range(iterations):
-            # print(key, type(key))
-            candidate_key = key
             position = random.randint(0, key_length - 1)
-            candidate_key[position] = chr((ord(candidate_key[position]) - ord('A') + random.randint(1, 25)) % 26 + ord('A'))
-            
-            decrypted = decrypt_autokey(ciphertext, key)
+            random_character = chr((ord(key[position]) - ord('A') + random.randint(1, 25)) % 26 + ord('A'))
+            candidate_key = key[:position] + random_character + key[position + 1:]
+            decrypted = decrypt_autokey(ciphertext, candidate_key)
             text_freq = Counter(decrypted)
             chi_squared = chi_squared_statistic(text_freq, ENGLISH_FREQ, len(decrypted))
             if chi_squared < best_chi_squared:
+                # print(f"candidate key: {candidate_key}, decryptedS: {decrypted}, chi_square: {chi_squared}")
                 best_chi_squared = chi_squared
                 best_guess = decrypted
-                best_key = key
+                best_key = candidate_key
 
     return best_guess, best_key
 
 # Example usage
 # plaintext: dCodeAutoclave
 # initial keyword: X
-ciphertext = "aFqrhEunhqnlvz"
+ciphertext = "IHWKYVFREZJSEHRSHSXBWIOXBRGNUAPTTWIZENINPWCPONWBNVIFEKLMDSSHWGEMICLLGFDOGOELSTZRTTSIAQYKEKSMZSJUEKHMRRLIIFSIVRMOMOGEEHNUMXONULHGMIKNABUXXNYSTZLSUTAEE"
 start = timer()
 plaintext, key = crack_autokey(ciphertext)
 print(f"took {(timer()-start)*1000:.2f}ms")
