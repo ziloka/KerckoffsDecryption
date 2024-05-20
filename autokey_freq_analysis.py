@@ -3,6 +3,7 @@ import random
 from collections import Counter
 from timeit import default_timer as timer
 import math
+from multiprocessing import Pool, cpu_count, freeze_support
 
 # Frequency of English letters
 ENGLISH_FREQ = {
@@ -18,7 +19,8 @@ def chi_squared_statistic(text_freq, english_freq, text_length):
     for letter in english_freq:
         observed = text_freq.get(letter, 0)
         expected = english_freq[letter] * text_length / 100
-        chi_squared += (observed - expected) ** 2 / expected
+        if expected > 0:  # Avoid division by zero
+            chi_squared += (observed - expected) ** 2 / expected
     return chi_squared
 
 # Function to decrypt using a given key
@@ -35,54 +37,84 @@ def decrypt_autokey(ciphertext, key):
             extended_key += char
     return decrypted
 
-# Simulated Annealing function to find the best key
-def simulated_annealing(ciphertext, max_key_length, initial_temp, cooling_rate, iterations):
-    ciphertext = ciphertext.upper()
-    best_key = "A" * max_key_length
-    best_decrypted = decrypt_autokey(ciphertext, best_key)
-    best_freq = Counter(best_decrypted)
-    best_chi_squared = chi_squared_statistic(best_freq, ENGLISH_FREQ, len(best_decrypted))
+# Genetic Algorithm functions
+def mutate_key(key, mutation_rate):
+    key_list = list(key)
+    for i in range(len(key_list)):
+        if random.random() < mutation_rate:
+            new_char = chr(random.randint(ord('A'), ord('Z')))
+            key_list[i] = new_char
+    return ''.join(key_list)
 
-    current_key = best_key
-    current_chi_squared = best_chi_squared
+def crossover_keys(key1, key2):
+    pos = random.randint(1, len(key1) - 1)
+    return key1[:pos] + key2[pos:]
 
-    temp = initial_temp
-
-    for _ in range(iterations):
-        # Create a new candidate key by modifying one character
-        position = random.randint(0, max_key_length - 1)
-        new_char = chr((ord(current_key[position]) - ord('A') + random.randint(1, 25)) % 26 + ord('A'))
-        candidate_key = current_key[:position] + new_char + current_key[position + 1:]
-
-        decrypted = decrypt_autokey(ciphertext, candidate_key)
+def generate_initial_population(ciphertext, population_size, key_length):
+    population = []
+    for _ in range(population_size):
+        key = ''.join(random.choice(string.ascii_uppercase) for _ in range(key_length))
+        decrypted = decrypt_autokey(ciphertext, key)
         text_freq = Counter(decrypted)
-        candidate_chi_squared = chi_squared_statistic(text_freq, ENGLISH_FREQ, len(decrypted))
+        chi_squared = chi_squared_statistic(text_freq, ENGLISH_FREQ, len(decrypted))
+        population.append((key, chi_squared))
+    return population
 
-        # Acceptance probability
-        delta_chi_squared = candidate_chi_squared - current_chi_squared
-        acceptance_prob = math.exp(-delta_chi_squared / temp) if delta_chi_squared > 0 else 1
+def genetic_algorithm(ciphertext, key_length, population_size, generations, mutation_rate):
+    population = generate_initial_population(ciphertext, population_size, key_length)
+    best_key, best_chi_squared = min(population, key=lambda x: x[1])
 
-        # Decide whether to accept the new candidate
-        if random.random() < acceptance_prob:
-            current_key = candidate_key
-            current_chi_squared = candidate_chi_squared
-            if current_chi_squared < best_chi_squared:
-                best_key = current_key
-                best_chi_squared = current_chi_squared
-                best_decrypted = decrypted
-                print(f"best key: {best_key}, best chi-squared: {best_chi_squared}, decrypted: {decrypted}")
+    for generation in range(generations):
+        new_population = []
+        elite = sorted(population, key=lambda x: x[1])[:population_size // 10]
+        new_population.extend(elite)
+        
+        for _ in range(population_size - len(elite)):
+            parent1, parent2 = random.sample(population, 2)
+            child_key = crossover_keys(parent1[0], parent2[0])
+            child_key = mutate_key(child_key, mutation_rate)
+            decrypted = decrypt_autokey(ciphertext, child_key)
+            text_freq = Counter(decrypted)
+            chi_squared = chi_squared_statistic(text_freq, ENGLISH_FREQ, len(decrypted))
+            new_population.append((child_key, chi_squared))
+        
+        population = new_population
+        current_best_key, current_best_chi_squared = min(population, key=lambda x: x[1])
+        if current_best_chi_squared < best_chi_squared:
+            best_key, best_chi_squared = current_best_key, current_best_chi_squared
+        
+        # Adaptive mutation rate
+        mutation_rate = max(0.01, mutation_rate * 0.95 if generation % 50 == 0 else mutation_rate)
 
-        # Cool down the temperature
-        temp *= cooling_rate
+    return best_key
 
+def parallel_genetic_algorithm(ciphertext, max_key_length, population_size, generations, mutation_rate, num_processes):
+    with Pool(num_processes) as pool:
+        key_lengths = [max_key_length] * num_processes
+        results = pool.starmap(genetic_algorithm, [(ciphertext, kl, population_size, generations, mutation_rate) for kl in key_lengths])
+    best_key = min(results, key=lambda key: chi_squared_statistic(Counter(decrypt_autokey(ciphertext, key)), ENGLISH_FREQ, len(ciphertext)))
+    return best_key
+
+def crack_autokey(ciphertext, max_key_length=20, population_size=500, generations=1000):
+    num_processes = cpu_count()
+    best_key = parallel_genetic_algorithm(ciphertext, max_key_length, population_size, generations, 0.05, num_processes)
+    best_decrypted = decrypt_autokey(ciphertext, best_key)
     return best_decrypted, best_key
 
-# Main function to crack the Autokey cipher
-def crack_autokey(ciphertext, max_key_length=20, initial_temp=100.0, cooling_rate=0.99, iterations=10000):
-    return simulated_annealing(ciphertext, max_key_length, initial_temp, cooling_rate, iterations)
 
-# Example usage
-ciphertext = "IHWKYVFREZJSEHRSHSXBWIOXBRGNUAPTTWIZENINPWCPONWBNVIFEKLMDSSHWGEMICLLGFDOGOELSTZRTTSIAQYKEKSMZSJUEKHMRRLIIFSIVRMOMOGEEHNUMXONULHGMIKNABUXXNYSTZLSUTAEE"
-best_decrypted, best_key = crack_autokey(ciphertext)
-print("Best Decrypted Text:", best_decrypted)
-print("Best Key:", best_key)
+if __name__ == "__main__":
+    freeze_support()
+    # Example usage
+    # key is password
+    ciphertext = "IHWKYVFREZJSEHRSHSXBWIOXBRGNUAPTTWIZENINPWCPONWBNVIFEKLMDSSHWGEMICLLGFDOGOELSTZRTTSIAQYKEKSMZSJUEKHMRRLIIFSIVRMOMOGEEHNUMXONULHGMIKNABUXXNYSTZLSUTAEE"
+    start = timer()
+    best_decrypted, best_key = crack_autokey(ciphertext)
+    print(f"took {(timer()-start)*1000:.2f}ms")
+    print("Best Decrypted Text:", best_decrypted)
+    print("Chi squared statistic:", chi_squared_statistic(Counter(best_decrypted), ENGLISH_FREQ, len(best_decrypted)))
+    print("Best Key:", best_key)
+
+    print()
+    plaintext = decrypt_autokey(ciphertext, "PASSWORD")
+    print("actual answer: ", plaintext)
+    print("Chi squared statistic:", chi_squared_statistic(Counter(plaintext), ENGLISH_FREQ, len(plaintext)))
