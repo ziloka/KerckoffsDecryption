@@ -13,6 +13,7 @@ ENGLISH_FREQ = {
     'K': 0.69, 'X': 0.17, 'Q': 0.11, 'J': 0.10, 'Z': 0.07
 }
 
+
 # Function to get the chi-squared statistic
 def chi_squared_statistic(text_freq, english_freq, text_length):
     chi_squared = 0.0
@@ -47,7 +48,6 @@ def mutate_key(key, mutation_rate):
     return ''.join(key_list)
 
 def crossover_keys(key1, key2):
-    # print(min(len(key1), len(key2)) - 1)
     pos = random.randint(1, min(len(key1), len(key2)))
     return key1[:pos] + key2[pos:]
 
@@ -91,20 +91,12 @@ def genetic_algorithm(ciphertext, max_key_length, population_size, generations, 
 
     return best_key
 
-def parallel_genetic_algorithm(ciphertext, max_key_length, population_size, generations, mutation_rate, num_processes):
-    with Pool(num_processes) as pool:
-        results = pool.starmap(genetic_algorithm, [(ciphertext, max_key_length, population_size, generations, mutation_rate) for _ in range(num_processes)])
-    best_key = min(results, key=lambda key: chi_squared_statistic(Counter(decrypt_autokey(ciphertext, key)), ENGLISH_FREQ, len(ciphertext)))
-    return best_key
-
 def crack_autokey(ciphertext, max_key_length=20, population_size=100, generations=500):
-    num_processes = cpu_count()
-    best_key = parallel_genetic_algorithm(ciphertext, max_key_length, population_size, generations, 0.05, num_processes)
+    best_key = genetic_algorithm(ciphertext, max_key_length, population_size, generations, 0.05)
     best_decrypted = decrypt_autokey(ciphertext, best_key)
     return best_decrypted, best_key
 
 if __name__ == "__main__":
-    freeze_support()
     # Example usage
     ciphertext = "IHWKYVFREZJSEHRSHSXBWIOXBRGNUAPTTWIZENINPWCPONWBNVIFEKLMDSSHWGEMICLLGFDOGOELSTZRTTSIAQYKEKSMZSJUEKHMRRLIIFSIVRMOMOGEEHNUMXONULHGMIKNABUXXNYSTZLSUTAEE"
     start = timer()
