@@ -1,12 +1,8 @@
-# prompt: write a python script that can decrypt autokey ciphers without the key using frequency analysis
-# make sure you try your hardest to make the most accurate, effective script
-
-# chatgpt (gpt-4o) generated the following code
-
 import string
 import random
 from collections import Counter
 from timeit import default_timer as timer
+import math
 
 # Frequency of English letters
 ENGLISH_FREQ = {
@@ -25,20 +21,10 @@ def chi_squared_statistic(text_freq, english_freq, text_length):
         chi_squared += (observed - expected) ** 2 / expected
     return chi_squared
 
-# Function to perform a single letter shift
-def shift(text, amount):
-    shifted = ""
-    for char in text:
-        if char in string.ascii_uppercase:
-            shifted += chr((ord(char) - ord('A') - amount) % 26 + ord('A'))
-        else:
-            shifted += char
-    return shifted
-
 # Function to decrypt using a given key
 def decrypt_autokey(ciphertext, key):
     decrypted = ""
-    extended_key = key.upper() + decrypted
+    extended_key = key.upper()
     for i, char in enumerate(ciphertext):
         if char in string.ascii_uppercase:
             shift_amount = ord(extended_key[i]) - ord('A')
@@ -49,35 +35,54 @@ def decrypt_autokey(ciphertext, key):
             extended_key += char
     return decrypted
 
-# Main function to crack the Autokey cipher
-def crack_autokey(ciphertext, max_key_length=20, iterations=1000):
+# Simulated Annealing function to find the best key
+def simulated_annealing(ciphertext, max_key_length, initial_temp, cooling_rate, iterations):
     ciphertext = ciphertext.upper()
-    best_guess = ""
-    best_chi_squared = float('inf')
+    best_key = "A" * max_key_length
+    best_decrypted = decrypt_autokey(ciphertext, best_key)
+    best_freq = Counter(best_decrypted)
+    best_chi_squared = chi_squared_statistic(best_freq, ENGLISH_FREQ, len(best_decrypted))
 
-    for key_length in range(1, max_key_length+1):  # Trying different key lengths
-        key = "A" * key_length
-        for _ in range(iterations):
-            position = random.randint(0, key_length - 1)
-            random_character = chr((ord(key[position]) - ord('A') + random.randint(1, 25)) % 26 + ord('A'))
-            candidate_key = key[:position] + random_character + key[position + 1:]
-            decrypted = decrypt_autokey(ciphertext, candidate_key)
-            text_freq = Counter(decrypted)
-            chi_squared = chi_squared_statistic(text_freq, ENGLISH_FREQ, len(decrypted))
-            if chi_squared < best_chi_squared:
-                # print(f"candidate key: {candidate_key}, decryptedS: {decrypted}, chi_square: {chi_squared}")
-                best_chi_squared = chi_squared
-                best_guess = decrypted
-                best_key = candidate_key
+    current_key = best_key
+    current_chi_squared = best_chi_squared
 
-    return best_guess, best_key
+    temp = initial_temp
+
+    for _ in range(iterations):
+        # Create a new candidate key by modifying one character
+        position = random.randint(0, max_key_length - 1)
+        new_char = chr((ord(current_key[position]) - ord('A') + random.randint(1, 25)) % 26 + ord('A'))
+        candidate_key = current_key[:position] + new_char + current_key[position + 1:]
+
+        decrypted = decrypt_autokey(ciphertext, candidate_key)
+        text_freq = Counter(decrypted)
+        candidate_chi_squared = chi_squared_statistic(text_freq, ENGLISH_FREQ, len(decrypted))
+
+        # Acceptance probability
+        delta_chi_squared = candidate_chi_squared - current_chi_squared
+        acceptance_prob = math.exp(-delta_chi_squared / temp) if delta_chi_squared > 0 else 1
+
+        # Decide whether to accept the new candidate
+        if random.random() < acceptance_prob:
+            current_key = candidate_key
+            current_chi_squared = candidate_chi_squared
+            if current_chi_squared < best_chi_squared:
+                best_key = current_key
+                best_chi_squared = current_chi_squared
+                best_decrypted = decrypted
+                print(f"best key: {best_key}, best chi-squared: {best_chi_squared}, decrypted: {decrypted}")
+
+        # Cool down the temperature
+        temp *= cooling_rate
+
+    return best_decrypted, best_key
+
+# Main function to crack the Autokey cipher
+def crack_autokey(ciphertext, max_key_length=20, initial_temp=100.0, cooling_rate=0.99, iterations=10000):
+    return simulated_annealing(ciphertext, max_key_length, initial_temp, cooling_rate, iterations)
 
 # Example usage
-# plaintext: dCodeAutoclave
-# initial keyword: X
 ciphertext = "IHWKYVFREZJSEHRSHSXBWIOXBRGNUAPTTWIZENINPWCPONWBNVIFEKLMDSSHWGEMICLLGFDOGOELSTZRTTSIAQYKEKSMZSJUEKHMRRLIIFSIVRMOMOGEEHNUMXONULHGMIKNABUXXNYSTZLSUTAEE"
-start = timer()
-plaintext, key = crack_autokey(ciphertext)
-print(f"took {(timer()-start)*1000:.2f}ms")
-print(f"Guessed Key: {key}")
-print(f"Decrypted Text: {plaintext}")
+best_decrypted, best_key = crack_autokey(ciphertext)
+print("Best Decrypted Text:", best_decrypted)
+print("Best Key:", best_key)
