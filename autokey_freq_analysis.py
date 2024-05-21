@@ -1,9 +1,11 @@
+import sys
 import string
 import random
 from collections import Counter
 from timeit import default_timer as timer
-import math
-from multiprocessing import Pool, cpu_count, freeze_support
+
+seed = random.randrange(sys.maxsize)
+rng = random.Random(seed)
 
 # Frequency of English letters
 ENGLISH_FREQ = {
@@ -12,7 +14,6 @@ ENGLISH_FREQ = {
     'F': 2.30, 'Y': 2.11, 'W': 2.09, 'G': 2.03, 'P': 1.82, 'B': 1.49, 'V': 1.11,
     'K': 0.69, 'X': 0.17, 'Q': 0.11, 'J': 0.10, 'Z': 0.07
 }
-
 
 # Function to get the chi-squared statistic
 def chi_squared_statistic(text_freq, english_freq, text_length):
@@ -42,20 +43,20 @@ def decrypt_autokey(ciphertext, key):
 def mutate_key(key, mutation_rate):
     key_list = list(key)
     for i in range(len(key_list)):
-        if random.random() < mutation_rate:
-            new_char = chr(random.randint(ord('A'), ord('Z')))
+        if rng.random() < mutation_rate:
+            new_char = chr(rng.randint(ord('A'), ord('Z')))
             key_list[i] = new_char
     return ''.join(key_list)
 
 def crossover_keys(key1, key2):
-    pos = random.randint(1, min(len(key1), len(key2)))
+    pos = rng.randint(1, min(len(key1), len(key2)))
     return key1[:pos] + key2[pos:]
 
 def generate_initial_population(ciphertext, population_size, max_key_length):
     population = []
     for _ in range(population_size):
-        key_length = random.randint(1, max_key_length)
-        key = ''.join(random.choice(string.ascii_uppercase) for _ in range(key_length))
+        key_length = rng.randint(1, max_key_length)
+        key = ''.join(rng.choice(string.ascii_uppercase) for _ in range(key_length))
         decrypted = decrypt_autokey(ciphertext, key)
         text_freq = Counter(decrypted)
         chi_squared = chi_squared_statistic(text_freq, ENGLISH_FREQ, len(decrypted))
@@ -72,7 +73,7 @@ def genetic_algorithm(ciphertext, max_key_length, population_size, generations, 
         new_population.extend(elite)
         
         for _ in range(population_size - len(elite)):
-            parent1, parent2 = random.sample(population, 2)
+            parent1, parent2 = rng.sample(population, 2)
             child_key = crossover_keys(parent1[0], parent2[0])
             child_key = mutate_key(child_key, mutation_rate)
             decrypted = decrypt_autokey(ciphertext, child_key)
@@ -83,6 +84,7 @@ def genetic_algorithm(ciphertext, max_key_length, population_size, generations, 
         population = new_population
         current_best_key, current_best_chi_squared = min(population, key=lambda x: x[1])
         if current_best_chi_squared < best_chi_squared:
+            print(f"Generation {generation}: Best Chi Squared: {current_best_chi_squared:.2f}")
             best_key, best_chi_squared = current_best_key, current_best_chi_squared
         
         # Adaptive mutation rate
@@ -97,18 +99,21 @@ def crack_autokey(ciphertext, max_key_length=20, population_size=100, generation
     return best_decrypted, best_key
 
 if __name__ == "__main__":
-    # Example usage
+    # print(generate_initial_population("aFqrhEunhqnlvz", 20, 10))
+
+    # # Example usage
     ciphertext = "IHWKYVFREZJSEHRSHSXBWIOXBRGNUAPTTWIZENINPWCPONWBNVIFEKLMDSSHWGEMICLLGFDOGOELSTZRTTSIAQYKEKSMZSJUEKHMRRLIIFSIVRMOMOGEEHNUMXONULHGMIKNABUXXNYSTZLSUTAEE"
     start = timer()
     best_decrypted, best_key = crack_autokey(ciphertext, max_key_length=20, population_size=100, generations=500)
     print(f"Time taken: {(timer()-start)*1000:.2f}ms")
+    print("Seed was:", seed) # 6767349894349881705
     print("Best Decrypted Text:", best_decrypted)
     print("Best Key:", best_key)
     print("Chi Squared:", chi_squared_statistic(Counter(best_decrypted), ENGLISH_FREQ, len(best_decrypted)))
 
-    print()
-    plaintext = decrypt_autokey(ciphertext, "PASSWORD")
-    print("Plaintext:", plaintext)
-    print("Ciphertext:", ciphertext)
-    print("Key:", "PASSWORD")
-    print("Chi Squared:", chi_squared_statistic(Counter(plaintext), ENGLISH_FREQ, len(plaintext)))
+    # print()
+    # plaintext = decrypt_autokey(ciphertext, "PASSWORD")
+    # print("Plaintext:", plaintext)
+    # print("Ciphertext:", ciphertext)
+    # print("Key:", "PASSWORD")
+    # print("Chi Squared:", chi_squared_statistic(Counter(plaintext), ENGLISH_FREQ, len(plaintext)))
