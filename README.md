@@ -1,5 +1,6 @@
 # General Notes
 - [polyalphabetic substitution cipher](https://pi.math.cornell.edu/~mec/2003-2004/cryptography/polyalpha/polyalpha.html) variant, it is similar to the [Vigenère cipher](https://en.wikipedia.org/wiki/Vigen%C3%A8re_cipher)
+- https://crypto.stackexchange.com/questions/40119/how-to-solve-columnar-transposition-cipher-without-a-key
 
 ## Things to think about the cipher
 - study repetitions and near-repetitions in the ciphertext
