@@ -1,9 +1,11 @@
+import sys
 import string
 import random
 from collections import Counter
 from timeit import default_timer as timer
-import math
-from multiprocessing import Pool, cpu_count, freeze_support
+
+seed = random.randrange(sys.maxsize)
+random.seed(seed)
 
 # Frequency of English letters
 ENGLISH_FREQ = {
@@ -12,7 +14,6 @@ ENGLISH_FREQ = {
     'F': 2.30, 'Y': 2.11, 'W': 2.09, 'G': 2.03, 'P': 1.82, 'B': 1.49, 'V': 1.11,
     'K': 0.69, 'X': 0.17, 'Q': 0.11, 'J': 0.10, 'Z': 0.07
 }
-
 
 # Function to get the chi-squared statistic
 def chi_squared_statistic(text_freq, english_freq, text_length):
@@ -98,17 +99,21 @@ def crack_autokey(ciphertext, max_key_length=20, population_size=100, generation
 
 if __name__ == "__main__":
     # Example usage
+    # key: password, has a chi squared value of 11.8
     ciphertext = "IHWKYVFREZJSEHRSHSXBWIOXBRGNUAPTTWIZENINPWCPONWBNVIFEKLMDSSHWGEMICLLGFDOGOELSTZRTTSIAQYKEKSMZSJUEKHMRRLIIFSIVRMOMOGEEHNUMXONULHGMIKNABUXXNYSTZLSUTAEE"
     start = timer()
     best_decrypted, best_key = crack_autokey(ciphertext, max_key_length=20, population_size=100, generations=500)
     print(f"Time taken: {(timer()-start)*1000:.2f}ms")
+    print("seed: ", seed) # 1840704045573419828, 4098024409606275208, 2730598923906855722, 5218436368185893926, 961567004807804403
     print("Best Decrypted Text:", best_decrypted)
     print("Best Key:", best_key)
     print("Chi Squared:", chi_squared_statistic(Counter(best_decrypted), ENGLISH_FREQ, len(best_decrypted)))
 
-    print()
-    plaintext = decrypt_autokey(ciphertext, "PASSWORD")
-    print("Plaintext:", plaintext)
-    print("Ciphertext:", ciphertext)
-    print("Key:", "PASSWORD")
-    print("Chi Squared:", chi_squared_statistic(Counter(plaintext), ENGLISH_FREQ, len(plaintext)))
+    # key: passnord has a chi squared of 8.790756492927203
+
+    # print()
+    # plaintext = decrypt_autokey(ciphertext, "PASSWORD")
+    # print("Plaintext:", plaintext)
+    # print("Ciphertext:", ciphertext)
+    # print("Key:", "PASSWORD")
+    # print("Chi Squared:", chi_squared_statistic(Counter(plaintext), ENGLISH_FREQ, len(plaintext)))
