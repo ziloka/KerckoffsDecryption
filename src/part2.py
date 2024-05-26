@@ -1,11 +1,16 @@
-import copy
 import string
+import sys
 import logging
 import random
 from pathlib import Path
+from collections import Counter
 from timeit import default_timer as timer
+from helper import utils, crypto
 
-import helper.utils as utils
+# seed = random.randrange(sys.maxsize)
+seed = 9126045727986561402
+random.seed(seed)
+print("seed: ", seed)
 
 logger = logging.getLogger(Path(__file__).stem)
 logger.setLevel('DEBUG')
@@ -31,74 +36,134 @@ perf_start = timer()
 codeword2letter = utils.dict_swap_keys_and_values(dict(zip(alphabet, get_codewords(ciphertext))))
 print(f"It took {(timer()-perf_start)*1000:.2f}ms to get codewords.")
 
-def decrypt_wo_key(encrypted, codeword2letter):
-    codeword2letter = copy.deepcopy(codeword2letter)
-    plaintext = ""
-    start = 0
-    while start < len(encrypted):
-        length = int(encrypted[start])
-        code = encrypted[start:start + length]
-        # TODO: step stating it is unrealistic that "x" is next to "z"
-        # Use hill climbing algo to find the best key
-        plaintext += codeword2letter[code]
-        codeword2letter = utils.dict_shift_keys(codeword2letter, int(code[-1]))
-        start += length
-    return plaintext
+# https://stackoverflow.com/a/58869428/15332154
+def derangement(keys):
+    if len(keys) == 1:
+        raise ValueError('No derangement is possible')
 
-# idea: use bruteforce and frequency analysis to find key quickly
+    new_keys = list(keys)
 
-def quadgram_score(text):
-    """Calculate the score of a text based on quadgram frequencies."""
-    score = 0
-    n = len(text)
-    for i in range(n - 3):
-        quadgram = text[i:i + 4]
-        if quadgram in QUADGRAMS:
-            score += QUADGRAMS[quadgram]
+    while any(x == y for x, y in zip(keys, new_keys)):
+        random.shuffle(new_keys)
+
+    return new_keys
+
+def shuffle_dict(d):
+    return { x: d[y] for x, y in zip(d, derangement(d)) }
+
+ENGLISH_FREQ = {
+    'E': 12.02, 'T': 9.10, 'A': 8.12, 'O': 7.68, 'I': 7.31, 'N': 6.95, 'S': 6.28,
+    'R': 6.02, 'H': 5.92, 'D': 4.32, 'L': 3.98, 'U': 2.88, 'C': 2.71, 'M': 2.61,
+    'F': 2.30, 'Y': 2.11, 'W': 2.09, 'G': 2.03, 'P': 1.82, 'B': 1.49, 'V': 1.11,
+    'K': 0.69, 'X': 0.17, 'Q': 0.11, 'J': 0.10, 'Z': 0.07
+}
+
+def chi_squared_statistic(text_freq: dict[str, str], text_length: int):
+    chi_squared = 0.0
+    for letter in ENGLISH_FREQ:
+        observed = text_freq.get(letter, 0)
+        expected = ENGLISH_FREQ[letter] * text_length / 100
+        if expected > 0:  # Avoid division by zero
+            chi_squared += (observed - expected) ** 2 / expected
+    return chi_squared
+
+def mutate_key(key: dict[str, str], mutation_rate: int, shuffle_elements=3):
+    if not key or len(key) <= 1:
+        return key  # No mutation if empty or single key dictionary
+
+    # Create a new dictionary to avoid modifying the original
+    mutated_dict = dict(key)
+
+    # Choose a random key to swap
+    key_to_mutate = random.choice(list(mutated_dict.keys()))
+
+    # Mutate key with probability
+    if random.random() < mutation_rate:
+        # Choose another random key (excluding the chosen one)
+        other_key = random.choice(list(mutated_dict.keys()))
+        while other_key == key_to_mutate:
+            other_key = random.choice(list(mutated_dict.keys()))
+
+        # Swap key-value pairs
+        mutated_dict[key_to_mutate], mutated_dict[other_key] = mutated_dict[other_key], mutated_dict[key_to_mutate]
+
+    return mutated_dict
+
+def crossover_keys(key1: dict[str, str], key2: dict[str, str]):
+    common_keys = list(key1.keys())
+    offspring = {}
+    for key in common_keys:
+        if random.random() < 0.5:
+            offspring[key] = key1[key]
         else:
-            score += math.log10(0.01 / n)
-    return score
+            offspring[key] = key2[key]
+    return offspring
 
-def decrypt_autokey(ciphertext, key):
-    """Decrypt the ciphertext using the given key."""
-    ciphertext = ciphertext.upper()
-    key = key.upper()
-    decrypted_text = []
+def generate_initial_population(codeword2letter: dict[str, str], population_size: int):
+    population = []
+    for _ in range(population_size):
+        key = shuffle_dict(codeword2letter)
+        decrypted = crypto.decrypt(ciphertext, key)
+        text_freq = Counter(decrypted)
+        chi_squared = chi_squared_statistic(text_freq, len(decrypted))
+        population.append((key, chi_squared))
+    return population
 
-    key_extended = key
-    for i, char in enumerate(ciphertext):
-        if char in string.ascii_uppercase:
-            shift = ord(key_extended[i]) - ord('A')
-            decrypted_char = chr((ord(char) - shift - ord('A')) % 26 + ord('A'))
-            decrypted_text.append(decrypted_char)
-            key_extended += decrypted_char  # Autokey mechanism
-        else:
-            decrypted_text.append(char)
+def genetic_algorithm(ciphertext: str, codeword2letter: dict[str, str], population_size: int, generations: int, mutation_rate: int):
+    population = generate_initial_population(codeword2letter, population_size)
+    best_key, best_chi_squared = min(population, key=lambda x: x[1])
 
-    return ''.join(decrypted_text)
+    for generation in range(generations):
+        new_population = []
+        elite = sorted(population, key=lambda x: x[1])[:population_size // 10]
+        new_population.extend(elite)
+        
+        for _ in range(population_size - len(elite)):
+            parent1, parent2 = random.sample(population, 2)
+            child_key = crossover_keys(parent1[0], parent2[0])
 
-def hill_climbing(ciphertext, max_key_length=20, iterations=1000):
-    """Use hill climbing to find the best key."""
-    best_key = ""
-    best_score = float('-inf')
+            # old_keys = child_key.keys()
 
-    # Try different initial key lengths
-    for key_length in range(1, max_key_length + 1):
-        key = ['A'] * key_length
-        for _ in range(iterations):
-            # Generate a candidate key by modifying the current key
-            candidate_key = key[:]
-            position = random.randint(0, key_length - 1)
-            candidate_key[position] = chr((ord(candidate_key[position]) - ord('A') + random.randint(1, 25)) % 26 + ord('A'))
-            candidate_key_text = ''.join(candidate_key)
+            # print(f"old key & child key remain the same {list(set(old_keys).difference(child_key))}\n")
 
-            decrypted_text = decrypt_autokey(ciphertext, candidate_key_text)
-            score = quadgram_score(decrypted_text)
+            # mutate key actually mutates the key itself
+            # child_key = mutate_key(child_key, mutation_rate)
 
-            # If the candidate key is better, update the key and score
-            if score > best_score:
-                best_key = candidate_key_text
-                best_score = score
-                key = candidate_key
+            new_keys = child_key.keys()
+
+            # differences = list(set(old_keys).difference(new_keys))
+            # if len(differences) > 0:
+            #     print(child_key)
+            #     print(f"{differences}")
+                
+
+            decrypted = crypto.decrypt(ciphertext, child_key)
+            text_freq = Counter(decrypted)
+            chi_squared = chi_squared_statistic(text_freq, len(decrypted))
+            new_population.append((child_key, chi_squared))
+
+        population = new_population
+        current_best_key, current_best_chi_squared = min(population, key=lambda x: x[1])
+        if current_best_chi_squared < best_chi_squared:
+            print(f"best_chi_squared: {best_chi_squared}")
+            best_key, best_chi_squared = current_best_key, current_best_chi_squared
+        
+        # Adaptive mutation rate
+        if generation % 50 == 0:
+            mutation_rate *= 0.95
 
     return best_key
+
+def crack_autokey(ciphertext: str, codeword2letter: dict[str, str], population_size: int=100, generations: int=500):
+    best_key = genetic_algorithm(ciphertext, codeword2letter, population_size, generations, 0.05)
+    best_decrypted = crypto.decrypt(ciphertext, best_key)
+    return best_decrypted, best_key
+
+if __name__ == "__main__":
+    start = timer()
+    best_decrypted, best_key = crack_autokey(ciphertext, codeword2letter)
+    print(f"Time taken: {(timer()-start)*1000:.2f}ms")
+
+    print("Best Decrypted Text:", best_decrypted)
+    print("Best Key:", best_key)
+    print("Chi Squared:", chi_squared_statistic(Counter(best_decrypted), len(best_decrypted)))

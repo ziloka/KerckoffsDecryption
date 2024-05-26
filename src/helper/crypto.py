@@ -1,8 +1,7 @@
-import copy
 import helper.utils as utils
 
-def encrypt(plaintext, letter2codeword):
-    letter2codeword = copy.deepcopy(letter2codeword)
+def encrypt(plaintext: str, letter2codeword: dict[str, str]):
+    letter2codeword = letter2codeword.copy()
     encrypted = ""
     for letter in plaintext:
         code = letter2codeword[letter]
@@ -10,8 +9,8 @@ def encrypt(plaintext, letter2codeword):
         letter2codeword = utils.dict_shift_values(letter2codeword, int(code[-1]))
     return encrypted
 
-def decrypt(encrypted, codeword2letter):
-    codeword2letter = copy.deepcopy(codeword2letter)
+def decrypt(encrypted: str, codeword2letter: dict[str, str]):
+    codeword2letter = codeword2letter.copy()
     plaintext = ""
     start = 0
     while start < len(encrypted):
