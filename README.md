@@ -3,6 +3,8 @@
 - https://crypto.stackexchange.com/questions/40119/how-to-solve-columnar-transposition-cipher-without-a-key
 - https://github.com/CrypToolProject/CrypTool-2
 - https://www.cryptool.org/en/ct2/
+- [Autokey C# implementation](https://github.com/CrypToolProject/CrypTool-2/blob/af0b6f3ced981b85bb7b911a9a3eccf50a909677/CrypPlugins/VigenereAnalyzer/VigenereAnalyzer.cs#L240-L390)
+- 
 
 ## Things to think about the cipher
 - study repetitions and near-repetitions in the ciphertext
