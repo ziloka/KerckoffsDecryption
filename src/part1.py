@@ -13,4 +13,6 @@ plaintext = decrypt(encrypted, codeword2letter)
 print(plaintext)
 print(encrypt(plaintext, letter2codeword))
 
+print(len(encrypt(plaintext, letter2codeword)))
+
 # THE CACHE IS LOCATED AT NORTH THIRTY NINE DEGREES TEN POINT FOUR EIGHT TWO YOULL ALSO NEED WEST SEVENTY SIX DEGREES FIFTY ONE POINT FOUR HUNDRED TWENTY TWO CACHE IS AB IS ON ON A FENCE

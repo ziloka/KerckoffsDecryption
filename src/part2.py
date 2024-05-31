@@ -6,6 +6,7 @@ from pathlib import Path
 from collections import Counter
 from timeit import default_timer as timer
 from helper import utils, crypto
+import math
 
 # seed = random.randrange(sys.maxsize)
 seed = 9126045727986561402
@@ -21,6 +22,14 @@ logger.addHandler(filehandler_dbg)
 alphabet = list(string.ascii_uppercase)
 FILENAME = "input/part1.txt"
 ciphertext = open(FILENAME, "r", encoding='utf-8').read().strip()
+
+necessary_words = {
+    "THE": 3,
+    "CACHE": 1,
+    "NORTHTHIRTYNINEDEGREES": 1,
+    "WESTSEVENTYSIXDEGREES": 1,
+    "POINT": 2
+}
 
 def get_codewords(encrypted):
     start = 0
@@ -58,13 +67,17 @@ ENGLISH_FREQ = {
     'K': 0.69, 'X': 0.17, 'Q': 0.11, 'J': 0.10, 'Z': 0.07
 }
 
-def chi_squared_statistic(text_freq: dict[str, str], text_length: int):
+def chi_squared_statistic(text_freq: dict[str, str], text_length: int, text: str):
     chi_squared = 0.0
     for letter in ENGLISH_FREQ:
         observed = text_freq.get(letter, 0)
         expected = ENGLISH_FREQ[letter] * text_length / 100
         if expected > 0:  # Avoid division by zero
             chi_squared += (observed - expected) ** 2 / expected
+    
+    if not "TH" in text:
+        return math.inf
+    
     return chi_squared
 
 def mutate_key(key: dict[str, str], mutation_rate: int, shuffle_elements=3):
@@ -105,7 +118,7 @@ def generate_initial_population(codeword2letter: dict[str, str], population_size
         key = shuffle_dict(codeword2letter)
         decrypted = crypto.decrypt(ciphertext, key)
         text_freq = Counter(decrypted)
-        chi_squared = chi_squared_statistic(text_freq, len(decrypted))
+        chi_squared = chi_squared_statistic(text_freq, len(decrypted), decrypted)
         population.append((key, chi_squared))
     return population
 
@@ -139,7 +152,7 @@ def genetic_algorithm(ciphertext: str, codeword2letter: dict[str, str], populati
 
             decrypted = crypto.decrypt(ciphertext, child_key)
             text_freq = Counter(decrypted)
-            chi_squared = chi_squared_statistic(text_freq, len(decrypted))
+            chi_squared = chi_squared_statistic(text_freq, len(decrypted), decrypted)
             new_population.append((child_key, chi_squared))
 
         population = new_population
@@ -166,4 +179,4 @@ if __name__ == "__main__":
 
     print("Best Decrypted Text:", best_decrypted)
     print("Best Key:", best_key)
-    print("Chi Squared:", chi_squared_statistic(Counter(best_decrypted), len(best_decrypted)))
+    print("Chi Squared:", chi_squared_statistic(Counter(best_decrypted), len(best_decrypted), best_decrypted))
