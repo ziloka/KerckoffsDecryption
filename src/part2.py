@@ -1,18 +1,19 @@
-# use a dictionary of quadgrams to try and map some letters
-# use frequency analysis to check if the ciphertext gets closer to something that looks like english
+# this is an autokey where the key is given by the last digit of the codeword
+# this means it is a ciphertext-autokey, the less common kind
+# it says that after each codeword is produced, the alphabet table is shifted by an amount equal to the last digit
+# so when you go to encipher the third codeword, the alphabet table has previously been shifted by the last digit of the first codeword plus the last digit of the second codeword. so for each codeword you know the total shift that was applied to the alphabet at that point
+# for example here are the first several codewords together with the shift that was used for each codeword. you can assume the shift for the first codeword is zero because the rest of the solution will be the same no matter the initial shift.
 
 import string
-import sys
-import random
-# from timeit import default_timer as timer
+from timeit import default_timer as timer
 
-seed = random.randrange(sys.maxsize)
-random.seed(seed)
-print("seed:", seed)
-
+start = timer()
 alphabet = list(string.ascii_uppercase)
-FILENAME = "input/part1.txt"
+FILENAME = "input/part2.txt"
 ciphertext = open(FILENAME, "r", encoding='utf-8').read().strip()
+
+ASCII_CODE_a = 97
+ASCII_CODE_A = 65
 
 def get_codewords(encrypted: str) -> set[str]:
     start = 0
@@ -26,38 +27,79 @@ def get_codewords(encrypted: str) -> set[str]:
 
 codewords = get_codewords(ciphertext)
 
-# words = ["NORTHTHIRTYNINEDEGREES", "WESTSEVENTYSIXDEGREES"]
-
-# plaintext = "NORTHTHIRTYNINEDEGREES"
-
-# the key is the shift number
+# the key is the shift number (the position the letter is in the english alphabet)
 # the value is all codewords with the same exact shift, this list of [start, end] positions can be replaced with a single letter
-# the resulting text can be decrypted as a monoalphabetic cipher
-frequency_charts = {i: [] for i in range(len(alphabet))}
-shifts_dict = {i: [] for i in range(len(alphabet))}
+# shifts_dict = {i: [] for i in range(len(alphabet))}
+# key is in x_y format, x is the start pos, y is the end pos
+# value maps to a number that represents the position in the alphabet
+pos2shift = {}
 
-# Index of concidence
 shift = 0
 start = 0
-# monoalphabetic_cipher = ""
+updated_ciphertext = ""
 for codeword in codewords:
     last = int(codeword[-1])
-    # monoalphabetic_cipher += alphabet[shift]
-    shifts_dict[shift].append([start, start + len(codeword)])
+    end = start + len(codeword)
+    updated_ciphertext += chr(shift + ASCII_CODE_A)
+    # shifts_dict[shift].append([start, end])
+    # pos2shift[f"{start}_{end}"] = shift
     start += len(codeword)
     shift += last
     shift %= 26
 
-# print(monoalphabetic_cipher)
-
-# monoalphabetic cipher stuff
 # keep track of both the 26 different frequency charts, and the positions of those 26 groups within the ciphertexts. 
+charts = {i: {"H": [], "M": [], "L": []} for i in range(len(alphabet))}
+
 # one of the things you can do with the frequency charts is to divide the code words into "high", "medium", and "low frequency" classes within each chart.
-# then in the ciphertext you can identify each code word (each letter) as one of those H/M/L classes by looking at which group the code word is in.
-# you can also use this to place the crib you mentioned earlier. the three classes are roughly  ETAOINSR, HDLCUMFPGWYBV, and JKQXZ
+# in the ciphertext you can identify each code word (each letter) as one of those H/M/L classes by looking at which group the letter (codeword) is in.
+
+# print(shifts_dict)
+
+frequency_classes = {
+    "H": "ETAOINSR",
+    "M": "HDLCUMFPGWYBV",
+    "L": "JKQXZ"
+}
+
+start = 0
+for letter in updated_ciphertext:
+    # end = start + len(codeword)
+    # shift = pos2shift[f"{start}_{end}"]
+    # letter = chr(shift + ASCII_CODE_A)
+    freq_class = ""
+    for k, v in frequency_classes.items():
+        if letter in v:
+            freq_class = k
+            break
+    if len(freq_class) == 0:
+        raise Exception(f"Did not expect character {letter}. This character is not in the english alphabet")
+    print(f"{freq_class} {letter}")
+    charts[shift][freq_class].append(letter)
+    start += len(codeword)
+
+# for shift, codewordpositions in shifts_dict.items():
+#     for pos in codewordpositions:
+#         start = pos[0]
+#         end = pos[1]
+#         shift = pos2shift[f"{start}_{end}"]
+#         letter = chr(shift + ASCII_CODE_A)
+#         freq_class = ""
+#         for k, v in frequency_classes.items():
+#             if letter in v:
+#                 freq_class = k
+#                 break
+#         if len(freq_class) == 0:
+#             raise Exception(f"Did not expect character {letter}. This character is not in the english alphabet")
+#         charts[shift].append(freq_class)
+
+print(charts)
+
+# # you can also use this to place the crib you mentioned earlier. the three classes are roughly  ETAOINSR, HDLCUMFPGWYBV, and JKQXZ
+# you can also find positions where it is impossible to place that crib, because doing so would assign the same letter to two different codewords within the same group, or two different letters to the same codeword+group
 
 # the assigned frequency classes for the crib
 
 # NORTHTHIRTYNINEDEGREES
 # HHHHMHMHHHMHHHHMHMHHHH
 
+# print(f"took {timer()-start:.0f}ms")
