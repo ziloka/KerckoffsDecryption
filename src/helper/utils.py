@@ -1,8 +1,24 @@
 import itertools
 from collections import deque
 
+ENGLISH_FREQ = {
+    'E': 12.02, 'T': 9.10, 'A': 8.12, 'O': 7.68, 'I': 7.31, 'N': 6.95, 'S': 6.28,
+    'R': 6.02, 'H': 5.92, 'D': 4.32, 'L': 3.98, 'U': 2.88, 'C': 2.71, 'M': 2.61,
+    'F': 2.30, 'Y': 2.11, 'W': 2.09, 'G': 2.03, 'P': 1.82, 'B': 1.49, 'V': 1.11,
+    'K': 0.69, 'X': 0.17, 'Q': 0.11, 'J': 0.10, 'Z': 0.07
+}
+
+def chi_squared_statistic(text_freq: dict[str, str], text_length: int):
+    chi_squared = 0.0
+    for letter in ENGLISH_FREQ:
+        observed = text_freq.get(letter, 0)
+        expected = ENGLISH_FREQ[letter] * text_length / 100
+        if expected > 0:  # Avoid division by zero
+            chi_squared += (observed - expected) ** 2 / expected
+    return chi_squared
+
 # https://stackoverflow.com/a/40389411
-def printTable(myDict, colList=None):
+def dict_format_table(myDict, colList=None):
    """ Pretty print a list of dictionaries (myDict) as a dynamically sized table.
    If column names (colList) aren't specified, they will show in random order.
    Author: Thierry Husson - Use it as you want but don't blame me.
@@ -13,7 +29,7 @@ def printTable(myDict, colList=None):
    colSize = [max(map(len,col)) for col in zip(*myList)]
    formatStr = ' | '.join(["{{:<{}}}".format(i) for i in colSize])
    myList.insert(1, ['-' * i for i in colSize]) # Seperating line
-   return [formatStr.format(*item) for item in myList].join("\n")
+   return "\n".join([formatStr.format(*item) for item in myList])
 
 # https://stackoverflow.com/a/33938783
 def find_in_list_of_list(mylist, char):
@@ -72,13 +88,3 @@ def dict_shift_keys(dct, n):
     shift_keys = deque(dct.keys())
     shift_keys.rotate(n)
     return dict(zip(shift_keys, dct.values()))
-
-
-
-# https://stackoverflow.com/a/55092246
-# rollup = lambda a: a[1:] + a[:1]
-# rolldown = lambda a: a[-1:] + a[:-1]
-# rollleft = lambda a: [row[1:] + row[:1] for row in a]
-# rollright = lambda a: [row[-1:] + row[:-1] for row in a]
-
-# shiftedup= lambda a: a[1:] + [[0] * len(a[0])]

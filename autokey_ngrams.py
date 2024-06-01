@@ -1,30 +1,44 @@
 # https://chatgpt.com/share/3b4b4233-bc13-4b20-ac84-de5f680be82e
 
-import sys
+import re
 import string
 import math
 import random
 from timeit import default_timer as timer
-from helper.crypto import decrypt
 
-seed = random.randrange(sys.maxsize)
-random.seed(seed)
+# Load English n-gram probabilities for more accurate frequency analysis
+with open('quadgrams.txt', 'r', encoding='utf-8') as f:
+    QUADGRAMS = {line.split()[0]: math.log10(float(line.split()[1])) for line in f}
 
-ENGLISH_FREQ = {
-    'E': 12.02, 'T': 9.10, 'A': 8.12, 'O': 7.68, 'I': 7.31, 'N': 6.95, 'S': 6.28,
-    'R': 6.02, 'H': 5.92, 'D': 4.32, 'L': 3.98, 'U': 2.88, 'C': 2.71, 'M': 2.61,
-    'F': 2.30, 'Y': 2.11, 'W': 2.09, 'G': 2.03, 'P': 1.82, 'B': 1.49, 'V': 1.11,
-    'K': 0.69, 'X': 0.17, 'Q': 0.11, 'J': 0.10, 'Z': 0.07
-}
+def quadgram_score(text):
+    """Calculate the score of a text based on quadgram frequencies."""
+    score = 0
+    n = len(text)
+    for i in range(n - 3):
+        quadgram = text[i:i + 4]
+        if quadgram in QUADGRAMS:
+            score += QUADGRAMS[quadgram]
+        else:
+            score += math.log10(0.01 / n)
+    return score
 
-def chi_squared_statistic(text_freq, english_freq, text_length):
-    chi_squared = 0.0
-    for letter in english_freq:
-        observed = text_freq.get(letter, 0)
-        expected = english_freq[letter] * text_length / 100
-        if expected > 0:  # Avoid division by zero
-            chi_squared += (observed - expected) ** 2 / expected
-    return chi_squared
+def decrypt_autokey(ciphertext, key):
+    """Decrypt the ciphertext using the given key."""
+    ciphertext = ciphertext.upper()
+    key = key.upper()
+    decrypted_text = []
+
+    key_extended = key
+    for i, char in enumerate(ciphertext):
+        if char in string.ascii_uppercase:
+            shift = ord(key_extended[i]) - ord('A')
+            decrypted_char = chr((ord(char) - shift - ord('A')) % 26 + ord('A'))
+            decrypted_text.append(decrypted_char)
+            key_extended += decrypted_char  # Autokey mechanism
+        else:
+            decrypted_text.append(char)
+
+    return ''.join(decrypted_text)
 
 def hill_climbing(ciphertext, max_key_length=20, iterations=1000):
     """Use hill climbing to find the best key."""
@@ -41,7 +55,7 @@ def hill_climbing(ciphertext, max_key_length=20, iterations=1000):
             candidate_key[position] = chr((ord(candidate_key[position]) - ord('A') + random.randint(1, 25)) % 26 + ord('A'))
             candidate_key_text = ''.join(candidate_key)
 
-            decrypted_text = decrypt(ciphertext, candidate_key_text)
+            decrypted_text = decrypt_autokey(ciphertext, candidate_key_text)
             score = quadgram_score(decrypted_text)
 
             # If the candidate key is better, update the key and score
@@ -52,16 +66,18 @@ def hill_climbing(ciphertext, max_key_length=20, iterations=1000):
 
     return best_key
 
+regex = re.compile('[^a-zA-Z]')
+
 def main():
     # plaintext: dCodeAutoclave
     # initial keyword: X
-    ciphertext = "aFqrhEunhqnlvz"
+    ciphertext = regex.sub('', "vMzgj rhthvg f gvllegflvi rcug xtow xkpel mf nmfw hmm cuhieqcs meorxs ss zal yjr, ic diquggk vbnskumsy pvrtmsw bl dlqktbh. Dkf vdhv citvlc, hVhhv dvhhqpml xa btpbauzb btm ovhieqzzjtz bsim ral txqa abpi ua xwljr qj fzrrsjego urnnwsvs. (Xclpgp wnnuhknkj fq EiVjlriEiyogueff)").upper()
     start = timer()
 
     # print("Ciphertext:", ciphertext)
 
     best_key = hill_climbing(ciphertext)
-    # print("Guessed Key:", best_key)
+    print("Guessed Key:", best_key)
 
     decrypted_text = decrypt_autokey(ciphertext, best_key)
     print(f"took {(timer()-start)*1000:.2f}ms")

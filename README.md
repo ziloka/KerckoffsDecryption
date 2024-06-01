@@ -6,6 +6,14 @@
 - [Autokey C# implementation](https://github.com/CrypToolProject/CrypTool-2/blob/af0b6f3ced981b85bb7b911a9a3eccf50a909677/CrypPlugins/VigenereAnalyzer/VigenereAnalyzer.cs#L240-L390)
 - 
 
+### Data collection
+- https://norvig.com/mayzner.html
+- https://storage.googleapis.com/books/ngrams/books/datasetsv3.html
+- https://github.com/zehadialam/Vigenere-Cipher-Breaker
+- http://practicalcryptography.com/cryptanalysis/text-characterisation/quadgrams/#a-python-implementation
+- http://practicalcryptography.com/cryptanalysis/stochastic-searching/cryptanalysis-autokey-cipher/
+- https://iq.opengenus.org/auto-key-cipher/
+
 ## Things to think about the cipher
 - study repetitions and near-repetitions in the ciphertext
 - what will happen when a plaintext word is repeated, considering that the codewords shift each time that word is used?
