@@ -29,31 +29,28 @@ codewords = get_codewords(ciphertext)
 
 # the key is the shift number (the position the letter is in the english alphabet)
 # the value is all codewords with the same exact shift, this list of [start, end] positions can be replaced with a single letter
-# shifts_dict = {i: [] for i in range(len(alphabet))}
+
 # key is in x_y format, x is the start pos, y is the end pos
 # value maps to a number that represents the position in the alphabet
-pos2shift = {}
 
 shift = 0
 start = 0
 updated_ciphertext = ""
+shifts = []
 for codeword in codewords:
     last = int(codeword[-1])
     end = start + len(codeword)
     updated_ciphertext += chr(shift + ASCII_CODE_A)
-    # shifts_dict[shift].append([start, end])
-    # pos2shift[f"{start}_{end}"] = shift
+    shifts.append(shift)
     start += len(codeword)
     shift += last
     shift %= 26
 
 # keep track of both the 26 different frequency charts, and the positions of those 26 groups within the ciphertexts. 
-charts = {i: {"H": [], "M": [], "L": []} for i in range(len(alphabet))}
+charts = {i: {letter: [] for letter in alphabet} for i in range(len(alphabet))}
 
 # one of the things you can do with the frequency charts is to divide the code words into "high", "medium", and "low frequency" classes within each chart.
 # in the ciphertext you can identify each code word (each letter) as one of those H/M/L classes by looking at which group the letter (codeword) is in.
-
-# print(shifts_dict)
 
 frequency_classes = {
     "H": "ETAOINSR",
@@ -62,10 +59,9 @@ frequency_classes = {
 }
 
 start = 0
-for letter in updated_ciphertext:
-    # end = start + len(codeword)
-    # shift = pos2shift[f"{start}_{end}"]
-    # letter = chr(shift + ASCII_CODE_A)
+for i, letter in enumerate(updated_ciphertext):
+    shift = shifts[i]
+
     freq_class = ""
     for k, v in frequency_classes.items():
         if letter in v:
@@ -73,24 +69,11 @@ for letter in updated_ciphertext:
             break
     if len(freq_class) == 0:
         raise Exception(f"Did not expect character {letter}. This character is not in the english alphabet")
-    print(f"{freq_class} {letter}")
+    
+    # print(f"{letter} charts[{shift}]['{freq_class}']")
     charts[shift][freq_class].append(letter)
-    start += len(codeword)
 
-# for shift, codewordpositions in shifts_dict.items():
-#     for pos in codewordpositions:
-#         start = pos[0]
-#         end = pos[1]
-#         shift = pos2shift[f"{start}_{end}"]
-#         letter = chr(shift + ASCII_CODE_A)
-#         freq_class = ""
-#         for k, v in frequency_classes.items():
-#             if letter in v:
-#                 freq_class = k
-#                 break
-#         if len(freq_class) == 0:
-#             raise Exception(f"Did not expect character {letter}. This character is not in the english alphabet")
-#         charts[shift].append(freq_class)
+    start += len(codeword)
 
 print(charts)
 
