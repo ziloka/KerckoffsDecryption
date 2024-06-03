@@ -4,7 +4,7 @@
 - https://github.com/CrypToolProject/CrypTool-2
 - https://www.cryptool.org/en/ct2/
 - [Autokey C# implementation](https://github.com/CrypToolProject/CrypTool-2/blob/af0b6f3ced981b85bb7b911a9a3eccf50a909677/CrypPlugins/VigenereAnalyzer/VigenereAnalyzer.cs#L240-L390)
-- 
+- https://inventwithpython.com/cracking/chapter20.html
 
 ### Data collection
 - https://norvig.com/mayzner.html

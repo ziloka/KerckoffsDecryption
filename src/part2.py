@@ -58,23 +58,21 @@ frequency_classes = {
     "L": "JKQXZ"
 }
 
-start = 0
-for i, letter in enumerate(updated_ciphertext):
-    shift = shifts[i]
+for alphabet_shift in range(len(alphabet)):
+    start = 0
+    for i, letter in enumerate(updated_ciphertext):
+        shift = shifts[i]
 
-    freq_class = ""
-    for k, v in frequency_classes.items():
-        if letter in v:
-            freq_class = k
-            break
-    if len(freq_class) == 0:
-        raise Exception(f"Did not expect character {letter}. This character is not in the english alphabet")
-    
-    # print(f"{letter} charts[{shift}]['{freq_class}']")
-    charts[shift][freq_class].append(letter)
+        freq_class = ""
+        for k, v in frequency_classes.items():
+            if letter in v:
+                freq_class = k
+                break
+        if len(freq_class) == 0:
+            raise Exception(f"Did not expect character {letter}. This character is not in the english alphabet")
 
-    start += len(codeword)
-
+        charts[shift][freq_class].append(letter)
+        start += len(codeword)
 print(charts)
 
 # # you can also use this to place the crib you mentioned earlier. the three classes are roughly  ETAOINSR, HDLCUMFPGWYBV, and JKQXZ
