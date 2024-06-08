@@ -68,15 +68,17 @@ ENGLISH_FREQ = {
 }
 
 def chi_squared_statistic(text_freq: dict[str, str], text_length: int, text: str):
+    if not "NORTH" in text:
+        return math.inf
+    else:
+        print(text)
+    
     chi_squared = 0.0
     for letter in ENGLISH_FREQ:
         observed = text_freq.get(letter, 0)
         expected = ENGLISH_FREQ[letter] * text_length / 100
         if expected > 0:  # Avoid division by zero
             chi_squared += (observed - expected) ** 2 / expected
-    
-    if not "TH" in text:
-        return math.inf
     
     return chi_squared
 
@@ -167,7 +169,7 @@ def genetic_algorithm(ciphertext: str, codeword2letter: dict[str, str], populati
 
     return best_key
 
-def crack_autokey(ciphertext: str, codeword2letter: dict[str, str], population_size: int=100, generations: int=500):
+def crack_autokey(ciphertext: str, codeword2letter: dict[str, str], population_size: int=100, generations: int=10000):
     best_key = genetic_algorithm(ciphertext, codeword2letter, population_size, generations, 0.05)
     best_decrypted = crypto.decrypt(ciphertext, best_key)
     return best_decrypted, best_key
