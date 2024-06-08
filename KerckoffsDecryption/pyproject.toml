@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "kerckoffsdecryption"
+version = "0.1.0"
+description = ""
+authors = ["Ziloka <50429450+ziloka@users.noreply.github.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.10"
+tabulate = "^0.9.0"
+numpy = "^1.26.4"
+scipy = "^1.13.0"
+subbreaker = "^1.2.0"
+pylint = "^3.2.1"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
