@@ -2,11 +2,12 @@ from helper.crypto import encrypt, decrypt, caesar_cipher
 import helper.utils as utils
 import random
 
-FILENAME = "input/part1.txt"
+#set ciphertext file and word to find
+FILENAME = "input/part2.txt"
 ciphertext = open(FILENAME, "r", encoding='utf-8').read().strip()
-word = "THIRTYNINEDEGREE"
+word = "NORTHTHIRTAT"
 
-
+#gets all codes in ciphertext
 def get_codewords(encrypted):
     start = 0
     codewords = list()
@@ -17,6 +18,8 @@ def get_codewords(encrypted):
         start += length
     return codewords
 
+#goodmappings are mappings which satisfy the word and ciphertext
+goodmappings = []
 
 codes = get_codewords(ciphertext)
 uniquecodes = []
@@ -25,6 +28,7 @@ for code in codes:
         uniquecodes.append(code)
 mapping = {chr(i) : "-" for i in range(65, 65+26)}
 
+#loops until cant anymore, keeps moving start up and finding which mappings work
 start = 0
 while start < len(codes)-len(word):
     codes = get_codewords(ciphertext)
@@ -37,7 +41,7 @@ while start < len(codes)-len(word):
     shift = 0
     for i in range(len(word)):
         letter = chr((ord(word[i])-shift-65)%26 + 65)
-        if start == 91:
+        if start == 0 or 190 < start < 200 or 205 < start < 215 or 245 < start < 255 or 280 < start < 290:
             print(start, i, letter, codes[start + i])
         # if codes[start+i] in mapping.values():
         #     print(mapping[letter])
@@ -46,44 +50,51 @@ while start < len(codes)-len(word):
         #     print("HUHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHHH")
         #     print(letter, mapping)
         #     break
-        if mapping[letter] != "-":
-            #print("the - wasnt there!!! oh no!!!")
-            if mapping[letter] != codes[start+i]:
-                #print("OK THE - WASNT THERE AND ALSO THE CODE WAS DIFFERENT SO KILL IT !!!")
-                break
         if codes[start+i] in mapping.values():
-            #print("the codes already in mapping!! oh no!!!")
             if letter != list(mapping.keys())[list(mapping.values()).index(codes[start+i])]:
-                #print("ok we can break now! no 26 mod")
+                break
+        if mapping[letter] != "-":
+            if mapping[letter] != codes[start+i]:
                 break
         mapping[letter] = codes[start+i]
         shift += int(codes[start+i][-1])
         if codes[start+i] in uniquecodes:
             uniquecodes.remove(codes[start+i])
     else:
-        print("we doneeeee")
-        break
+        print('we found one')
+        goodmappings.append((start, mapping))
     start += 1
-print("first done")
+print("first half done")
 
-print(mapping)
-if start != len(codes)-len(word):
-    for letter in mapping.keys():
-        if mapping[letter] != "-":
+#decrypts using mapping, assigns random code to alphabet we dont know
+for gstart, gmapping in goodmappings:
+    print(gstart, gmapping)
+    uniquecodes = []
+    for code in codes:
+        if not code in uniquecodes and not code in gmapping.values():
+            uniquecodes.append(code)
+    for letter in gmapping.keys():
+        if gmapping[letter] != "-":
             continue
         if len(uniquecodes) == 0:
             break
         randomcode = random.choice(uniquecodes)
-        mapping[letter] = randomcode
+        gmapping[letter] = randomcode
         uniquecodes.remove(randomcode)
 
-    inv_map = {v: k for k, v in mapping.items()}
+    inv_map = {v: k for k, v in gmapping.items()}
     print(inv_map)
     msg = decrypt(ciphertext, inv_map)
-    print(start, ord(word[0])-ord(msg[start]))
+    print(gstart, ord(word[0])-ord(msg[gstart]))
     #it was getting caesar cipher shifted by some amount idk why
-    msg = caesar_cipher(msg, ord(word[0])-ord(msg[start])) 
+    msg = caesar_cipher(msg, ord(word[0])-ord(msg[gstart])) 
     print(msg)
 
-else:
-    print("DOESNT WORKKAOPSKDOPASKDPAK (word not in message)")
+#if goodmappings is empty there is no key possible to make the word appear in the ciphertext
+print(len(goodmappings))
+if len(goodmappings)==0:
+    print("didnt work (word not found in msg)")
+
+
+
+#194 210 250 285
