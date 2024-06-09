@@ -5,7 +5,11 @@ from collections import Counter
 from timeit import default_timer as timer
 
 seed = random.randrange(sys.maxsize)
+<<<<<<< HEAD
 rng = random.Random(seed)
+=======
+random.seed(seed)
+>>>>>>> af4e694e0ab162a530723ccdc0c8a9aaec10341c
 
 # Frequency of English letters
 ENGLISH_FREQ = {

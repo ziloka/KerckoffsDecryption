@@ -1,5 +1,6 @@
 # https://chatgpt.com/share/3b4b4233-bc13-4b20-ac84-de5f680be82e
 
+import re
 import string
 import math
 import random
@@ -65,16 +66,18 @@ def hill_climbing(ciphertext, max_key_length=20, iterations=1000):
 
     return best_key
 
+regex = re.compile('[^a-zA-Z]')
+
 def main():
     # plaintext: dCodeAutoclave
     # initial keyword: X
-    ciphertext = "aFqrhEunhqnlvz"
+    ciphertext = regex.sub('', "vMzgj rhthvg f gvllegflvi rcug xtow xkpel mf nmfw hmm cuhieqcs meorxs ss zal yjr, ic diquggk vbnskumsy pvrtmsw bl dlqktbh. Dkf vdhv citvlc, hVhhv dvhhqpml xa btpbauzb btm ovhieqzzjtz bsim ral txqa abpi ua xwljr qj fzrrsjego urnnwsvs. (Xclpgp wnnuhknkj fq EiVjlriEiyogueff)").upper()
     start = timer()
 
     # print("Ciphertext:", ciphertext)
 
     best_key = hill_climbing(ciphertext)
-    # print("Guessed Key:", best_key)
+    print("Guessed Key:", best_key)
 
     decrypted_text = decrypt_autokey(ciphertext, best_key)
     print(f"took {(timer()-start)*1000:.2f}ms")

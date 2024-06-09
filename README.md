@@ -1,5 +1,18 @@
 # General Notes
 - [polyalphabetic substitution cipher](https://pi.math.cornell.edu/~mec/2003-2004/cryptography/polyalpha/polyalpha.html) variant, it is similar to the [Vigenère cipher](https://en.wikipedia.org/wiki/Vigen%C3%A8re_cipher)
+- https://crypto.stackexchange.com/questions/40119/how-to-solve-columnar-transposition-cipher-without-a-key
+- https://github.com/CrypToolProject/CrypTool-2
+- https://www.cryptool.org/en/ct2/
+- [Autokey C# implementation](https://github.com/CrypToolProject/CrypTool-2/blob/af0b6f3ced981b85bb7b911a9a3eccf50a909677/CrypPlugins/VigenereAnalyzer/VigenereAnalyzer.cs#L240-L390)
+- https://inventwithpython.com/cracking/chapter20.html
+
+### Data collection
+- https://norvig.com/mayzner.html
+- https://storage.googleapis.com/books/ngrams/books/datasetsv3.html
+- https://github.com/zehadialam/Vigenere-Cipher-Breaker
+- http://practicalcryptography.com/cryptanalysis/text-characterisation/quadgrams/#a-python-implementation
+- http://practicalcryptography.com/cryptanalysis/stochastic-searching/cryptanalysis-autokey-cipher/
+- https://iq.opengenus.org/auto-key-cipher/
 
 ## Things to think about the cipher
 - study repetitions and near-repetitions in the ciphertext
