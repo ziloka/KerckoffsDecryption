@@ -15,7 +15,11 @@ https://www.geocaching.com/geocache/GC9NT53_kerckhoffs-part-1
 1. This part is huge and you can break up the text into codewords right from the start. 
 2. the rest is solved more or less as an [autokey (aka autoclave) cipher key-autokey variant](https://en.wikipedia.org/wiki/Autokey_cipher), since the last digit of a codeword gives you the key for the next codeword
 
-<!-- https://discord.com/channels/645341027053600768/645341027053600771/1241561354544877588 -->
+<!--
+ https://discord.com/channels/645341027053600768/645341027053600771/1241561354544877588 
+https://www.geocaching.com/geocache/GC9NX39
+
+-->
 
 key "apple"
 

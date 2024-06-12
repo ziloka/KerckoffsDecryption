@@ -21,18 +21,17 @@ def decrypt(encrypted: str, codeword2letter: dict[str, str]):
         start += length
     return plaintext
 
-def caesar_cipher(text, shift):
-    result = []
-
+def caesar_cipher_decrypt(text, shift):
+    result = ""
     for char in text:
         if char.isalpha():
             # Determine if the character is uppercase or lowercase
             offset = 65 if char.isupper() else 97
             # Shift character and wrap around the alphabet
             new_char = chr((ord(char) + shift - offset) % 26 + offset)
-            result.append(new_char)
+            result += new_char
         else:
             # Non-alphabetical characters are added without change
-            result.append(char)
+            result += char
 
-    return ''.join(result)
+    return result
