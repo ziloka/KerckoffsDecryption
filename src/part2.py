@@ -1,76 +1,238 @@
-# this is an autokey where the key is given by the last digit of the codeword
-# this means it is a ciphertext-autokey, the less common kind
-# it says that after each codeword is produced, the alphabet table is shifted by an amount equal to the last digit
-# so when you go to encipher the third codeword, the alphabet table has previously been shifted by the last digit of the first codeword plus the last digit of the second codeword. so for each codeword you know the total shift that was applied to the alphabet at that point
-# for example here are the first several codewords together with the shift that was used for each codeword. you can assume the shift for the first codeword is zero because the rest of the solution will be the same no matter the initial shift.
+"""Break Kerckhoffs part 2.
+
+Cipher recap
+------------
+* The key is a 26-letter substitution: each plaintext letter maps to one unique
+  codeword.  The first digit of a codeword is its length, so the ciphertext can
+  be split into codewords without knowing the key.
+* After every codeword is used, the whole codeword table is rotated down by the
+  last digit of that codeword.  The shift is cumulative.
+
+Why the old approach failed
+---------------------------
+The old code tried to *mutate a guessed letter -> codeword table while reading*
+the ciphertext.  That is the wrong model: the shift applied to the table is
+already known from the ciphertext (the last digit of every codeword), so it
+should be applied to the plaintext side, not to a guessed mapping.
+
+The correct model
+-----------------
+Let c_i be the codeword used at position i, let pos(c_i) be its position in the
+original table (a permutation of 0..25), and let S_i be the cumulative shift
+before position i.  Then:
+
+        plaintext_i = (pos(c_i) + S_i) mod 26
+
+S_i is known from the ciphertext.  The only unknown is the permutation pos, so
+this is a 26! search that can be solved very reliably with simulated annealing
+on a quadgram language model.
+
+Run from the repository root:
+    python src/part2.py
+"""
 
 import math
+import random
 import string
-from helper import crypto, utils
+from pathlib import Path
 
-alphabet = list(string.ascii_uppercase)
-FILENAME = "input/part1.txt"
-ciphertext = open(FILENAME, "r", encoding='utf-8').read().strip()
+REPO_ROOT = Path(__file__).resolve().parents[1]
+CIPHERTEXT_FILE = REPO_ROOT / "input" / "part2.txt"
+QUADGRAM_FILE = REPO_ROOT / "assets" / "quadgrams.txt"
 
-ASCII_CODE_a = 97
-ASCII_CODE_A = 65
+LETTERS = string.ascii_uppercase
+ALPHABET_SIZE = len(LETTERS)
+QUADGRAM_BASE = ALPHABET_SIZE ** 3
 
-def get_codewords(encrypted: str) -> set[str]:
+
+def load_codewords(ciphertext: str) -> list[str]:
+    """Split the ciphertext using the first digit of each codeword."""
+    codewords: list[str] = []
     start = 0
-    codewords = list()
-    while start < len(encrypted):
-        length = int(encrypted[start])
-        code = encrypted[start:start + length]
-        codewords.append(code)
+    while start < len(ciphertext):
+        length = int(ciphertext[start])
+        if length <= 0:
+            raise ValueError(f"invalid codeword length at offset {start}")
+        codewords.append(ciphertext[start : start + length])
         start += length
     return codewords
 
-def main():
-    codewords = get_codewords(ciphertext)
-    unique_codewords = sorted(set(codewords))
-    bigrams = {}
-    for s in open("assets/english-bigrams.txt", encoding='utf-8').read().strip().split("\n"):
-        bigram, score = s.split(" ")
-        bigrams[bigram] = math.log(int(score))
 
-    def get_text_score(text: str):
-        text = text.upper().translate(str.maketrans('', '', string.punctuation))
-        score = 0
-        for word in text.split(" "):
-            for idx in range(len(word) - 1):
-                bigram = word[idx : idx + 2]
-                score += 0 if bigram not in bigrams else bigrams[bigram]
-        return score
-
-    ALPHABET = [*string.ascii_uppercase]
-    WINDOW_SIZE = 2
-    i = 0
+def cumulative_shifts(codewords: list[str]) -> list[int]:
+    """Cumulative table shift before each codeword."""
+    shifts: list[int] = []
     shift = 0
-    mapping = {letter: None for letter in ALPHABET}
-    while i < len(codewords) - WINDOW_SIZE + 1:
-        codeword1, codeword2 = codewords[i: i + WINDOW_SIZE]
-        for bigram in bigrams:
-            letter1, letter2 = [*bigram]
+    for codeword in codewords:
+        shifts.append(shift)
+        shift = (shift + int(codeword[-1])) % ALPHABET_SIZE
+    return shifts
 
-            if mapping[letter1] is None:
-                mapping[letter1] = codeword1
-                print(f"[{letter1} {codeword1[-1]}]")
-                mapping = utils.dict_shift_values(mapping, int(codeword1[-1]))
-                break
 
-            if mapping[codeword2] is None:
-                mapping[codeword2] = letter2
-                print(f"{codeword2} {codeword2[-1]} old mapping: {mapping}")
-                mapping = utils.dict_shift_values(mapping, int(codeword2[-1]))
-                print(f"new mapping: {mapping}\n")
-                break
-        assert [*set(mapping.values())] == len(mapping)
-        shift %= len(string.ascii_uppercase)
-        i += 1
-    plaintext = crypto.decrypt(ciphertext, mapping)
-    print(mapping)
+def load_quadgram_scores(path: Path) -> list[float]:
+    """Return a log10 score indexed by a*26^3 + b*26^2 + c*26 + d."""
+    scores: list[float | None] = [None] * (ALPHABET_SIZE ** 4)
+    smallest = float("inf")
+    with open(path, "r", encoding="utf-8") as handle:
+        for line in handle:
+            quadgram, count = line.split()
+            if len(quadgram) != 4:
+                continue
+            count = int(count)
+            smallest = min(smallest, count)
+            index = (
+                (ord(quadgram[0]) - 65) * QUADGRAM_BASE
+                + (ord(quadgram[1]) - 65) * 26 * 26
+                + (ord(quadgram[2]) - 65) * 26
+                + (ord(quadgram[3]) - 65)
+            )
+            scores[index] = math.log10(count)
+    # A quadgram that never occurs in the corpus should still be penalised,
+    # but not so heavily that a single bad quadgram can never be repaired.
+    floor = math.log10(smallest * 0.01)
+    return [floor if value is None else value for value in scores]
+
+
+def quadgram_index(letters: list[int], start: int) -> int:
+    a, b, c, d = letters[start : start + 4]
+    return a * QUADGRAM_BASE + b * 26 * 26 + c * 26 + d
+
+
+def quadgram_indices(letters: list[int]) -> list[int]:
+    return [
+        quadgram_index(letters, start)
+        for start in range(len(letters) - 3)
+    ]
+
+
+def decode(
+    symbols: list[int], shifts: list[int], permutation: list[int]
+) -> str:
+    return "".join(
+        LETTERS[(permutation[symbol] + shift) % ALPHABET_SIZE]
+        for symbol, shift in zip(symbols, shifts)
+    )
+
+
+def score_text(plaintext: str, scores: list[float]) -> float:
+    letters = [ord(letter) - 65 for letter in plaintext]
+    return sum(scores[index] for index in quadgram_indices(letters))
+
+
+def anneal(
+    symbols: list[int],
+    shifts: list[int],
+    scores: list[float],
+    *,
+    seed: int = 0,
+    iterations: int = 15_000,
+    start_temperature: float = 5.0,
+    end_temperature: float = 0.05,
+) -> tuple[list[int], float]:
+    """Simulated annealing over the 26! table permutation."""
+    rng = random.Random(seed)
+    permutation = list(range(ALPHABET_SIZE))
+    rng.shuffle(permutation)
+
+    plaintext = [
+        (permutation[symbol] + shift) % ALPHABET_SIZE
+        for symbol, shift in zip(symbols, shifts)
+    ]
+    indices = quadgram_indices(plaintext)
+    current = sum(scores[index] for index in indices)
+    best_permutation = permutation[:]
+    best_score = current
+
+    if len(indices) < 4:
+        return best_permutation, best_score
+
+    for step in range(iterations):
+        temperature = start_temperature * (
+            end_temperature / start_temperature
+        ) ** (step / iterations)
+
+        a, b = rng.sample(range(ALPHABET_SIZE), 2)
+        permutation[a], permutation[b] = permutation[b], permutation[a]
+
+        # Every position whose plaintext letter changed, and every quadgram
+        # that overlaps one of those positions.
+        affected_positions = {
+            i for i, symbol in enumerate(symbols) if symbol in (a, b)
+        }
+        affected_starts: set[int] = set()
+        for i in affected_positions:
+            first = max(0, i - 3)
+            last = min(len(indices) - 1, i)
+            affected_starts.update(range(first, last + 1))
+
+        for i in affected_positions:
+            plaintext[i] = (
+                permutation[symbols[i]] + shifts[i]
+            ) % ALPHABET_SIZE
+
+        new_score = current
+        for i in affected_starts:
+            new_score += (
+                scores[quadgram_index(plaintext, i)] - scores[indices[i]]
+            )
+
+        delta = new_score - current
+        if delta >= 0 or rng.random() < math.exp(delta / temperature):
+            current = new_score
+            for i in affected_starts:
+                indices[i] = quadgram_index(plaintext, i)
+            if current > best_score:
+                best_score = current
+                best_permutation = permutation[:]
+        else:
+            permutation[a], permutation[b] = permutation[b], permutation[a]
+            for i in affected_positions:
+                plaintext[i] = (
+                    permutation[symbols[i]] + shifts[i]
+                ) % ALPHABET_SIZE
+
+    return best_permutation, best_score
+
+
+def main() -> None:
+    ciphertext = CIPHERTEXT_FILE.read_text(encoding="utf-8").strip()
+    codewords = load_codewords(ciphertext)
+    shifts = cumulative_shifts(codewords)
+
+    unique_codewords = sorted(set(codewords))
+    codeword_index = {
+        codeword: index for index, codeword in enumerate(unique_codewords)
+    }
+    symbols = [codeword_index[codeword] for codeword in codewords]
+
+    scores = load_quadgram_scores(QUADGRAM_FILE)
+
+    best_permutation: list[int] | None = None
+    best_score = float("-inf")
+    for seed in range(4):
+        permutation, score = anneal(
+            symbols, shifts, scores, seed=seed, iterations=15_000
+        )
+        print(f"seed {seed}: quadgram score {score:.1f}")
+        if score > best_score:
+            best_score = score
+            best_permutation = permutation
+
+    assert best_permutation is not None
+    plaintext = decode(symbols, shifts, best_permutation)
+
+    # Round-trip check: re-encrypting must reproduce the original ciphertext.
+    inverse = [0] * ALPHABET_SIZE
+    for symbol, position in enumerate(best_permutation):
+        inverse[position] = symbol
+    rebuilt = "".join(
+        unique_codewords[inverse[(ord(letter) - 65 - shift) % ALPHABET_SIZE]]
+        for letter, shift in zip(plaintext, shifts)
+    )
+    assert rebuilt == ciphertext, "recovered table does not re-encrypt correctly"
+
+    print(f"best quadgram score: {best_score:.1f}")
     print(plaintext)
-    print(get_text_score(plaintext))
+
 
 if __name__ == "__main__":
     main()

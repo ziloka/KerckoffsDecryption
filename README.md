@@ -47,3 +47,37 @@ solver cracks substitution ciphers through dicitionary of quadgrams
 https://github.com/gibsjose/statistical-attack/tree/master
 
 ### [Kercekoffs part 3](https://www.geocaching.com/geocache/GC9PC6T_kerckhoffs-part-3)
+
+Part 3 changes two rules:
+- the first digit of a codeword no longer gives its length,
+- the last digit no longer gives the shift; every codeword has a secret shift value.
+
+The codeword dictionary was recovered from the ciphertext alone (see
+`input/codewords_part3.txt`): 26 prefix-free codewords that tile all 3,377
+digits with no leftovers and no prefix collisions. The cipher is then
+
+```
+plaintext_i = (tau[c_i] + S_i) mod 26
+S_{i+1}     = (S_i + omega[c_i]) mod 26
+```
+
+with `tau` a hidden permutation of the 26 codewords and `omega` 26 hidden
+shifts. `src/part3.py` contains a solver that recovers `tau` and `omega` from a
+correct ~100 letter plaintext crib by solving the induced linear system over
+Z/2 and Z/13, enumerating the small remaining solution space, keeping the key
+whose `tau` is a permutation, and decrypting the whole message. `--selftest`
+encrypts a known text with a random key and recovers it exactly.
+
+Remaining unknown: a correct plaintext crib. The part 2 solution says
+"to solve swap and double the last parts of the coords", and the part 3 hints
+mention "the Point" and that "only the seconds differ". The obvious coordinate
+candidates from part 1's `N39 10.482 W76 51.422` are `N39 10.844 W76 51.964`,
+`N39 10.964 W76 51.844`, and `N39 10.856 W76 51.848`, but none of those
+coordinate sentences appear in the plaintext (they are rejected by the key
+equations in every wording/offset tested). Once the real final coordinates are
+known, run:
+
+```
+python src/part3.py "THE CACHE IS LOCATED AT NORTH ... WEST ..."
+```
+
