@@ -68,8 +68,8 @@ text unpacks each row.
 \textbf{Part} & \textbf{What is public} & \textbf{What breaks it} & \textbf{Tools you will meet} \\
 \midrule
 1 & the whole table; the first digit gives the length and the last gives the shift & nothing: decode directly & prefix-free codes, greedy parsing, modular arithmetic \\
-2 & the length digit and the shift digit; the table itself is secret & guess the table with a language model and local search & permutations, hill climbing, simulated annealing, $n$-gram language models \\
-3 & nothing but the ciphertext & recover the dictionary, then use a long crib and linear algebra & hash maps, expectation, linear systems over $\mathrm{GF}(2)$ and $\mathrm{GF}(13)$, bitmasks \\
+2 & the length digit and the shift digit; the table itself is secret & guess the table with a language model and local search & permutations, hill climbing, simulated annealing, language models \\
+3 & nothing but the ciphertext & recover the dictionary, then use a long crib and linear algebra & hash maps, expectation, linear systems over finite fields, bitmasks \\
 \bottomrule
 \end{tabular}
 \end{center}
@@ -89,18 +89,23 @@ Reading guide:
 
 \begin{enumerate}[label=\arabic*.]
   \item \textbf{Modular arithmetic.}  Letters are numbers in
-        $\{0,\dots,25\}$ and every operation is modulo 26, so $25+1=0$.
+        $\{0,\dots,25\}$ and every operation is modulo 26 (written
+        \emph{mod} 26), so $25+1=0$.
   \item \textbf{Permutations.}  A table that assigns one codeword to each
-        letter is a bijection, i.e.\ a permutation; there are $26!$ of them.
+        letter is a bijection, that is, a permutation; there are $26!$ of
+        them.
   \item \textbf{Expectation.}  The expected number of events is the sum of
         their probabilities over all opportunities.  This is how we decide
         that a repeated 9-digit string is a real codeword rather than luck.
-  \item \textbf{Finite fields.}  Modulo a prime $p$, every nonzero element
-        has an inverse, so Gaussian elimination works exactly as over the
-        reals.  We use $p=2$ and $p=13$ because $26=2\cdot13$.
-  \item \textbf{Bitmasks.}  A vector over $\mathrm{GF}(2)$ is a binary number
-        and adding two vectors is XOR, which makes linear algebra on 52
-        unknowns fast enough to run hundreds of thousands of times.
+  \item \textbf{Finite fields.}  A finite field (also called a \emph{Galois
+        field}, written $\mathrm{GF}(p)$) is the integers modulo a prime $p$
+        with addition and multiplication.  Because $p$ is prime, every
+        nonzero element has an inverse, so Gaussian elimination works exactly
+        as over the reals.  We use $p=2$ and $p=13$ because $26=2\cdot13$.
+  \item \textbf{Bitmasks.}  A vector over $\mathrm{GF}(2)$ is a binary number,
+        and adding two vectors is \emph{XOR} (exclusive OR: $1+1=0$ and
+        $1+0=1$), which makes linear algebra on 52 unknowns fast enough to
+        run hundreds of thousands of times.
 \end{enumerate}
 
 \section{The setting: Kerckhoffs's principle}\label{sec:setting}
@@ -190,8 +195,8 @@ idea as length-prefixed strings in binary formats.
 
 Part 2 is the first stage that cannot be solved by a direct scan.  Before we
 meet it, here is the idea that rescues us, in the form you would meet in an
-optimisation or AI course --- the material that usually comes after a first
-algorithms course.
+optimisation or artificial-intelligence (AI) course --- the material that
+usually comes after a first data structures and algorithms (DSA) course.
 
 \subsection{Optimisation problems}
 
@@ -340,7 +345,9 @@ score and then the search.
 \subsection{The score: a quadgram language model}
 
 The objective function from the interlude is a simple language model.  A
-\emph{quadgram} is a sequence of four letters, e.g.\ \texttt{THEM}.  The
+\emph{quadgram} is a sequence of four letters (an \emph{$n$-gram} is a
+sequence of $n$ letters, so a quadgram is a 4-gram), for example
+\texttt{THEM}.  The
 repository includes counts of quadgrams from a large English corpus.  If a
 candidate decryption contains quadgram $q$, we add $\log P(q)$ to its score.
 For a text of length $n$ the total score is
@@ -493,7 +500,7 @@ dictionary.
         candidate was missing or wrong; adjust and repeat.
 \end{enumerate}
 
-The result is 26 codewords, e.g.
+The result is 26 codewords, for example
 
 \begin{lstlisting}
 243255912  222146337  946294413  80920926  63388773
@@ -543,7 +550,8 @@ If we know a stretch of plaintext---a \emph{crib}---then
 equation~\eqref{eq:diff} gives one linear equation per adjacent pair of
 letters, plus one absolute equation for the first letter (that one does
 involve the cumulative shift, and it pins the history down).  That is a
-linear system in the 52 unknowns over the ring $\mathbb{Z}/26\mathbb{Z}$.
+linear system in the 52 unknowns over the ring $\mathbb{Z}/26\mathbb{Z}$ (the
+integers modulo 26).
 
 \begin{keyidea}
 A crib of roughly 100 letters gives more than 52 equations.  The system is
@@ -613,7 +621,7 @@ The entire $\sim3\times10^5$-pair search runs in about one second in ordinary
 Python.
 
 \begin{lstlisting}
-MASK = (1 << 52) - 1          # 52 coefficient bits; bit 52 is the RHS
+MASK = (1 << 52) - 1          # 52 coefficient bits; bit 52 is the right-hand side (RHS)
 
 def consistent(a_pivots, b_rows):
     local = [0] * 53
@@ -700,8 +708,9 @@ hard and how the successful method differs.
 The earliest attempts assumed the part 3 plaintext reused part 1's coordinate
 sentence verbatim, with only the numbers changed.  We generated many wordings
 of ``THE CACHE IS LOCATED AT NORTH \dots'' with plausible connectors
-(``YOULL ALSO NEED'', ``AND WEST'', etc.), number styles (digit-by-digit vs.\
-number words), and coordinate candidates, and slid each one over every offset.
+(``YOULL ALSO NEED'', ``AND WEST'', and so on), number styles (digit-by-digit
+versus number words), and coordinate candidates, and slid each one over every
+offset.
 
 \emph{Why it failed.}  The hypothesis was too specific.  Part 3 replaces the
 ``THE CACHE IS LOCATED AT'' prefix, uses ``IN THE OTHER DIRECTION'' instead of
