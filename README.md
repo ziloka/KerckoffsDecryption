@@ -62,22 +62,38 @@ S_{i+1}     = (S_i + omega[c_i]) mod 26
 ```
 
 with `tau` a hidden permutation of the 26 codewords and `omega` 26 hidden
-shifts. `src/part3.py` contains a solver that recovers `tau` and `omega` from a
-correct ~100 letter plaintext crib by solving the induced linear system over
+shifts. `src/part3.py` contains the solver: it recovers `tau` and `omega` from
+a correct ~100 letter plaintext crib by solving the induced linear system over
 Z/2 and Z/13, enumerating the small remaining solution space, keeping the key
 whose `tau` is a permutation, and decrypting the whole message. `--selftest`
-encrypts a known text with a random key and recovers it exactly.
+encrypts a known text with a random key and recovers it exactly, and `--break`
+re-runs the phrase search described below.
 
-Remaining unknown: a correct plaintext crib. The part 2 solution says
-"to solve swap and double the last parts of the coords", and the part 3 hints
-mention "the Point" and that "only the seconds differ". The obvious coordinate
-candidates from part 1's `N39 10.482 W76 51.422` are `N39 10.844 W76 51.964`,
-`N39 10.964 W76 51.844`, and `N39 10.856 W76 51.848`, but none of those
-coordinate sentences appear in the plaintext (they are rejected by the key
-equations in every wording/offset tested). Once the real final coordinates are
-known, run:
+**Solved.** Hint 4 gives two exact phrases that both appear verbatim in the
+plaintext:
 
+```text
+NORTH THIRTY NINE DEGREES TEN POINT
+WEST SEVENTY SIX DEGREES FIFTY ONE POINT
 ```
-python src/part3.py "THE CACHE IS LOCATED AT NORTH ... WEST ..."
+
+They are not adjacent. Searching all offset pairs for joint consistency
+locates them at symbols 46 and 114, with the gap
+`FIVE HUNDRED THIRTEEN IN THE OTHER DIRECTION`. That crib pins the key, and
+the plaintext gives the final coordinates:
+
+```text
+N 39° 10.513  W 076° 51.682
 ```
+
+Run it:
+
+```text
+python src/part3.py            # decrypt and print the answer
+python src/part3.py --key      # recovered tau and omega
+python src/part3.py --break    # re-run the two-block phrase search
+```
+
+The full key, crib, plaintext, and coordinates are in
+`input/part3_solution.txt`; `POSTMORTEM.md` has the full narrative.
 

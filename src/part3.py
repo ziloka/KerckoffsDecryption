@@ -15,19 +15,28 @@ The dictionary below was recovered directly from ``input/part3.txt``: it is a
 prefix-free set of 26 codewords that tiles the entire ciphertext with no
 leftovers, and is the only set of maximal repeated substrings that does so.
 
-The remaining unknown is the key (tau, omega).  With a correct plaintext crib
-of roughly 80-100 letters the linear system that relates plaintext differences
-to the key becomes full rank, so a single correct crib is enough to recover the
-whole key and decrypt the rest of the message.
+The key (tau, omega) can be recovered from a correct plaintext crib of roughly
+80-100 letters: the linear system that relates plaintext differences to the
+key becomes full rank, so a single correct crib determines the whole key.
+
+The puzzle is solved.  The recovered key is stored in ``SOLVED_TAU`` /
+``SOLVED_OMEGA`` below, and running this module with no arguments (or with
+``--solve``) decrypts the real ciphertext and prints the plaintext and final
+coordinates.  ``--key`` prints the key, ``--break`` re-runs the two-block
+phrase search that located the crib, and ``--selftest`` verifies the crib
+solver on a synthetic key.
 
 Usage::
 
-    python src/part3.py --selftest
+    python src/part3.py             # decrypt the solved ciphertext
+    python src/part3.py --solve     # same, explicit
+    python src/part3.py --key       # print tau and omega
+    python src/part3.py --break     # locate the two hint phrases
+    python src/part3.py --selftest  # synthetic key recovery test
     python src/part3.py "THE CACHE IS LOCATED AT NORTH ..."
 
-No crib is supplied by default; this module is the finished tool that turns a
-correct coordinate sentence (or any other correct ~100 letter crib) into the
-full plaintext.
+``input/part3_solution.txt`` records the key, crib, plaintext and final
+coordinates.
 """
 
 import itertools
@@ -43,6 +52,21 @@ from part2 import LETTERS, QUADGRAM_FILE, load_quadgram_scores  # noqa: E402
 
 CODEWORD_FILE = REPO_ROOT / "input" / "codewords_part3.txt"
 CIPHERTEXT_FILE = REPO_ROOT / "input" / "part3.txt"
+
+# Recovered key.  See POSTMORTEM.md and input/part3_solution.txt.
+SOLVED_TAU = [
+    9, 16, 15, 11, 2, 12, 23, 19, 10, 18, 5, 1, 0,
+    17, 25, 3, 24, 7, 13, 4, 22, 20, 8, 6, 21, 14,
+]
+SOLVED_OMEGA = [
+    17, 13, 5, 21, 21, 17, 2, 5, 17, 10, 4, 14, 0,
+    1, 11, 18, 14, 24, 1, 5, 1, 24, 11, 5, 18, 19,
+]
+FINAL_COORDINATES = "N 39 10.513  W 076 51.682"
+
+# Hint-4 phrases: both appear verbatim in the plaintext.
+HINT_PHRASE_LAT = "NORTHTHIRTYNINEDEGREESTENPOINT"
+HINT_PHRASE_LON = "WESTSEVENTYSIXDEGREESFIFTYONEPOINT"
 
 ALPHABET_SIZE = 26
 _SCORES: list[float] | None = None
@@ -256,6 +280,154 @@ def verify_roundtrip(
     return rebuilt == symbols
 
 
+def _parity_masks(symbols: list[int]) -> list[int]:
+    masks = [0] * (len(symbols) + 1)
+    for i, symbol in enumerate(symbols):
+        masks[i + 1] = masks[i] ^ (1 << (symbol + 26))
+    return masks
+
+
+def _phrase_equations(
+    symbols: list[int], parity: list[int], offset: int, values: list[int]
+) -> list[int]:
+    """Packed GF(2) equations contributed by one phrase at one offset."""
+    rows: list[int] = []
+    for i in range(len(values) - 1):
+        first = symbols[offset + i]
+        second = symbols[offset + i + 1]
+        row = (1 << first) ^ (1 << second) ^ (1 << (first + 26))
+        if (values[i + 1] - values[i]) & 1:
+            row |= 1 << 52
+        rows.append(row)
+    first = symbols[offset]
+    row = (1 << first) ^ parity[offset]
+    if values[0] & 1:
+        row |= 1 << 52
+    rows.append(row)
+    return rows
+
+
+def _echelon(rows: list[int]) -> list[int] | None:
+    """Row-echelon form over GF(2); returns 53 pivot slots or None."""
+    mask = (1 << 52) - 1
+    pivots = [0] * 53
+    for row in rows:
+        while True:
+            coefficients = row & mask
+            if not coefficients:
+                if (row >> 52) & 1:
+                    return None
+                break
+            column = coefficients.bit_length() - 1
+            if pivots[column]:
+                row ^= pivots[column]
+            else:
+                pivots[column] = row
+                break
+    return pivots
+
+
+def find_hint_phrases() -> list[tuple[int, int]]:
+    """Locate the two hint-4 phrases by joint GF(2) consistency.
+
+    The true pair is ``(46, 114)``.  Every pair whose combined linear system
+    is consistent over GF(2) is printed; modulo 13 then leaves only the real
+    pair, whose solution space is filled by the 38-letter gap
+    ``FIVEHUNDREDTHIRTEENINTHEOTHERDIRECTION``.
+    """
+    codewords = load_codewords()
+    ciphertext = CIPHERTEXT_FILE.read_text(encoding="utf-8").strip()
+    symbols = segment(ciphertext, codewords)
+    parity = _parity_masks(symbols)
+    n = len(symbols)
+    mask = (1 << 52) - 1
+
+    def tables(phrase: str) -> tuple[dict[int, list[int]], int]:
+        values = [ord(ch) - 65 for ch in phrase]
+        found: dict[int, list[int]] = {}
+        for offset in range(n - len(values) + 1):
+            result = _echelon(_phrase_equations(symbols, parity, offset, values))
+            if result is not None:
+                found[offset] = result
+        return found, len(values)
+
+    print(
+        f"searching for {HINT_PHRASE_LAT!r} and {HINT_PHRASE_LON!r} "
+        "(singular and plural forms)"
+    )
+    all_hits: list[tuple[int, int]] = []
+    for label, lat_phrase, lon_phrase in (
+        ("singular", HINT_PHRASE_LAT, HINT_PHRASE_LON),
+        ("plural", HINT_PHRASE_LAT + "S", HINT_PHRASE_LON + "S"),
+    ):
+        lat_pivots, lat_length = tables(lat_phrase)
+        lon_pivots, lon_length = tables(lon_phrase)
+        lon_rows = {
+            offset: [row for row in pivots if row]
+            for offset, pivots in lon_pivots.items()
+        }
+        local = [0] * 53
+        dirty: list[int] = []
+        hits: list[tuple[int, int]] = []
+        for lat_offset in sorted(lat_pivots):
+            base = lat_pivots[lat_offset]
+            for lon_offset in sorted(lon_rows):
+                if abs(lon_offset - lat_offset) < max(lat_length, lon_length):
+                    continue
+                ok = True
+                for row in lon_rows[lon_offset]:
+                    value = row
+                    while True:
+                        coefficients = value & mask
+                        if not coefficients:
+                            if (value >> 52) & 1:
+                                ok = False
+                            break
+                        column = coefficients.bit_length() - 1
+                        pivot = base[column] or local[column]
+                        if pivot:
+                            value ^= pivot
+                        else:
+                            local[column] = value
+                            dirty.append(column)
+                            break
+                    if not ok:
+                        break
+                for column in dirty:
+                    local[column] = 0
+                dirty.clear()
+                if ok:
+                    hits.append((lat_offset, lon_offset))
+        print(f"  {label}: {len(hits)} GF(2)-consistent pair(s): {hits}")
+        if label == "singular":
+            all_hits = hits
+    return all_hits
+
+
+def solve() -> None:
+    """Decrypt the real ciphertext with the recovered key."""
+    codewords = load_codewords()
+    check_prefix_free(codewords)
+    ciphertext = CIPHERTEXT_FILE.read_text(encoding="utf-8").strip()
+    symbols = segment(ciphertext, codewords)
+    plaintext = decrypt(symbols, SOLVED_TAU, SOLVED_OMEGA)
+    print(f"part 3: {len(codewords)} codewords, {len(symbols)} symbols")
+    print(f"quadgram score: {score_text(plaintext):.1f}")
+    print(
+        "round-trip verifies: "
+        f"{verify_roundtrip(plaintext, symbols, SOLVED_TAU, SOLVED_OMEGA)}"
+    )
+    print()
+    print(plaintext)
+    print()
+    print(f"final coordinates: {FINAL_COORDINATES}")
+
+
+def print_key() -> None:
+    print(f"tau   = {SOLVED_TAU}")
+    print(f"omega = {SOLVED_OMEGA}")
+
+
 def selftest() -> None:
     """Encrypt a known text with a random key and recover it from a crib."""
     rng = random.Random(20240612)
@@ -296,21 +468,30 @@ def selftest() -> None:
 
 
 def main() -> None:
-    args = [a for a in sys.argv[1:] if not a.startswith("--")]
     if "--selftest" in sys.argv:
         selftest()
         return
+    if "--break" in sys.argv:
+        find_hint_phrases()
+        return
+    if "--key" in sys.argv:
+        print_key()
+        return
+    if "--solve" in sys.argv or len(sys.argv) == 1:
+        solve()
+        if "--solve" not in sys.argv:
+            print()
+            print("other modes: --key, --break, --selftest, or pass a crib")
+        return
 
+    args = [a for a in sys.argv[1:] if not a.startswith("--")]
     codewords = load_codewords()
     check_prefix_free(codewords)
     ciphertext = CIPHERTEXT_FILE.read_text(encoding="utf-8").strip()
     symbols = segment(ciphertext, codewords)
     print(f"part 3: {len(codewords)} codewords, {len(symbols)} symbols")
     if not args:
-        print(
-            "No crib supplied.  Pass a correct ~100 letter plaintext crib:\n"
-            '  python src/part3.py "THE CACHE IS LOCATED AT NORTH ..."'
-        )
+        solve()
         return
 
     crib = " ".join(args)
