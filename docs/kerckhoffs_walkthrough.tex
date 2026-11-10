@@ -133,6 +133,10 @@ part 3.
 
 \section{Part 1: the table is public}\label{sec:part1}
 
+Part 1 is the tutorial level: the cache page prints the whole table, so
+decryption needs no search at all.  Seeing the machine work here makes the
+later versions much easier to read.
+
 \subsection{The machine}
 
 Let the public table be a list of 26 codewords, one per letter.  In the actual
@@ -257,6 +261,10 @@ the search loop itself is generic.
 
 \section{Part 2: the table is hidden}\label{sec:part2}
 
+The interlude gives the shape of the attack --- state, score, neighbourhood.
+Part 2 supplies the specifics.  It keeps two of part 1's conveniences, which
+is exactly enough to make the problem hard but solvable.
+
 \subsection{What is still visible}
 
 Two things survive:
@@ -364,7 +372,9 @@ worse we accept it with probability
 
 where $\Delta$ is the score change and $T$ is a \emph{temperature} that starts
 high (explore) and slowly cools (exploit).  This lets the search escape local
-optima early on and settle into a good solution later.
+optima early on and settle into a good solution later.  The implementation
+runs several independent random seeds and keeps the best table, which is the
+random-restart remedy from the interlude.
 
 The implementation is careful about speed.  When we swap the entries for
 symbols $a$ and $b$, only positions whose codeword is $a$ or $b$ change their
@@ -392,7 +402,13 @@ doubling them ($187/227 \to 374/454$), giving the confirmed final coordinate
 $N\,39^\circ\,10.374$, $W\,076^\circ\,51.454$.  Applying the same recipe to
 part 1's numbers is a trap --- the checker rejects it.
 
+That is where the free information ends.  Part 2 could still read the codeword
+length and the rotation off the ciphertext; part 3 removes both.
+
 \section{Part 3: both conveniences removed}\label{sec:part3}
+
+Part 2 was hard but fair: the ciphertext still told us how to split it and how
+much the table rotated.  Part 3 takes both away, leaving only digits.
 
 Part 3 changes two rules:
 
@@ -408,16 +424,32 @@ shift is part of the key.  This section is the heart of the document.
 
 \subsection{Recovering the codeword dictionary}\label{sec:dict}
 
-The plaintext is a concatenation of codewords, but we do not know where the
-boundaries are.  However, the code is still prefix-free, and the codewords
-repeat often: a codeword encodes a fixed plaintext letter (up to the table
-rotation), so a common letter's codeword appears many times.
+Part 3 hides the dictionary, so the first job is to find the 26 codewords.
+The text is still a concatenation of codewords; we simply do not know where
+the boundaries are.  Two facts save us:
 
-\paragraph{A statistical argument.}  To see why a repeated 9-digit string is
-not a coincidence, build a \emph{null model}: pretend the ciphertext is a
-random string in which every digit is chosen independently and uniformly from
-$0,\dots,9$.  Fix a pattern $w$ of length $L$ and ask how many times $w$
-should appear.
+\begin{enumerate}[label=\arabic*.]
+  \item the code is still prefix-free;
+  \item each codeword repeats often.  The table rotation spreads the plaintext
+        letters over the codewords, so on average each codeword is used about
+        once every 26 symbols --- roughly 20 times in a 579-letter message.
+\end{enumerate}
+
+\paragraph{Why prefix-free means uniquely decodable.}  Suppose no codeword is
+a prefix of another.  Stand at the first digit and read forward until the
+digits you have seen form a codeword.  You must stop there.  If the true
+codeword were longer, it would have this codeword as a prefix, which the code
+forbids; and a shorter codeword would have been spotted earlier.  So the first
+boundary is forced.  The same argument applies from the next position, so the
+whole message has exactly one segmentation.  This is why the length digit made
+parts 1 and 2 easy to parse, and why part 3 becomes parseable as soon as the
+dictionary is known.
+
+\paragraph{A statistical argument for what is a codeword.}  To see why a
+repeated 9-digit string is not a coincidence, build a \emph{null model}:
+pretend the ciphertext is a random string in which every digit is chosen
+independently and uniformly from $0,\dots,9$.  Fix a pattern $w$ of length $L$
+and ask how many times $w$ should appear.
 
 There are $N-L+1$ places where $w$ could start (a length-$N$ string has that
 many windows of length $L$).  In the null model the probability that the
@@ -438,15 +470,27 @@ $N-L+1$ windows, \emph{some} pattern may repeat by chance at smaller $L$.  The
 calculation above is for one \emph{fixed} pattern, which is the right test for
 a candidate we have already singled out.)
 
+\paragraph{Greedy segmentation.}  Once we have candidate codewords, ``cut up''
+the ciphertext with them: start at the first digit, find a candidate that
+matches there, jump past it, and repeat.  This is called \emph{greedy} because
+each step commits to the current match and never backtracks.  In a prefix-free
+dictionary there is at most one matching candidate at any position --- if two
+different codewords both matched, the shorter would be a prefix of the longer
+--- so the scan is forced, and the only question is whether it reaches the
+end.  A candidate set that tiles the whole ciphertext with no leftovers is the
+dictionary.
+
 \paragraph{The recovery procedure.}
 \begin{enumerate}[label=\arabic*.]
   \item Count occurrences of every substring of length $2,\dots,9$ with a hash
         map.  This is $O(9N)$ work.
-  \item Keep the most frequent maximal strings; these are codeword candidates.
-  \item Greedily segment the whole ciphertext with the candidates, longest
-        first.  A prefix-free set makes the segmentation unambiguous.
+  \item Keep the longest frequent strings as candidates.  A short string that
+        lies inside a real longer codeword inherits that codeword's frequency,
+        so preferring longer strings removes accidental prefixes.
+  \item Greedily segment the ciphertext with the candidates, as above.
   \item Verify that the set tiles the entire ciphertext with no leftovers and
-        that no candidate is a prefix of another.
+        that no candidate is a prefix of another.  A failed check means a
+        candidate was missing or wrong; adjust and repeat.
 \end{enumerate}
 
 The result is 26 codewords, e.g.
@@ -460,7 +504,9 @@ The result is 26 codewords, e.g.
 
 \subsection{The key and the model}
 
-Now the decryption rule is
+With the dictionary in hand we can split the ciphertext into codewords and
+reuse the position-plus-rotation model from part 2.  The only change is that
+the rotation values are now secret too:
 
 \begin{align}
 p_i &= \bigl(\tau[c_i] + S_i\bigr)\bmod 26,\label{eq:p3}\\
@@ -480,8 +526,10 @@ naive key space is $26!\cdot 26^{26}$, which is astronomically large.
 
 \subsection{The linear structure that makes it solvable}\label{sec:linear}
 
-The secret shifts look intimidating, but the cipher is \emph{linear}.  Subtract
-the rule at consecutive positions:
+The secret shifts look intimidating, but the cipher is \emph{linear}.  The
+trick is to subtract the rule at consecutive positions.  Both positions share
+the same cumulative rotation $S_i$, so the whole history before position $i$
+cancels and only the local rotation $\omega[c_i]$ survives:
 
 \begin{align}
 p_{i+1}-p_i
@@ -493,8 +541,9 @@ p_{i+1}-p_i
 Everything on the right is a sum of key values with coefficients $0,\pm1$.
 If we know a stretch of plaintext---a \emph{crib}---then
 equation~\eqref{eq:diff} gives one linear equation per adjacent pair of
-letters, plus one absolute equation for the first letter.  That is a linear
-system in the 52 unknowns over the ring $\mathbb{Z}/26\mathbb{Z}$.
+letters, plus one absolute equation for the first letter (that one does
+involve the cumulative shift, and it pins the history down).  That is a
+linear system in the 52 unknowns over the ring $\mathbb{Z}/26\mathbb{Z}$.
 
 \begin{keyidea}
 A crib of roughly 100 letters gives more than 52 equations.  The system is
@@ -505,10 +554,12 @@ missing plaintext, not the key size.
 
 \subsection{Solving the linear system}
 
-The modulus factors as $26 = 2\cdot 13$, and both 2 and 13 are prime.  By the
-Chinese remainder theorem, solving modulo 26 is the same as solving modulo 2
-and modulo 13 separately and combining the answers.  Over a prime field,
-ordinary Gaussian elimination works: we can divide by any nonzero coefficient.
+A correct crib therefore turns the cipher into a linear system.  Solving it
+needs one algebraic observation.  The modulus factors as $26 = 2\cdot 13$, and
+both 2 and 13 are prime.  By the Chinese remainder theorem, solving modulo 26
+is the same as solving modulo 2 and modulo 13 separately and combining the
+answers.  Over a prime field, ordinary Gaussian elimination works: we can
+divide by any nonzero coefficient.
 
 \begin{enumerate}[label=\arabic*.]
   \item Build the equations from the crib.
@@ -640,8 +691,9 @@ The posted and final coordinates differ only in the seconds, exactly as the
 
 \section{What was tried and why it failed}\label{sec:failed}
 
-It is worth recording the dead ends, because they show what makes the puzzle
-genuinely hard and how the successful method differs.
+The solve above looks inevitable in hindsight.  It was not.  It is worth
+recording the dead ends, because they show what makes the puzzle genuinely
+hard and how the successful method differs.
 
 \subsection{Coordinate wording brute force}
 
