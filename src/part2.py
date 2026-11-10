@@ -43,6 +43,8 @@ QUADGRAM_FILE = REPO_ROOT / "assets" / "quadgrams.txt"
 LETTERS = string.ascii_uppercase
 ALPHABET_SIZE = len(LETTERS)
 QUADGRAM_BASE = ALPHABET_SIZE ** 3
+QUADGRAM_BASE2 = ALPHABET_SIZE ** 2
+QUADGRAM_BASE3 = ALPHABET_SIZE
 
 
 def load_codewords(ciphertext: str) -> list[str]:
@@ -93,8 +95,13 @@ def load_quadgram_scores(path: Path) -> list[float]:
 
 
 def quadgram_index(letters: list[int], start: int) -> int:
-    a, b, c, d = letters[start : start + 4]
-    return a * QUADGRAM_BASE + b * 26 * 26 + c * 26 + d
+    # Direct indexing avoids allocating a four-element slice in the hot loop.
+    return (
+        letters[start] * QUADGRAM_BASE
+        + letters[start + 1] * QUADGRAM_BASE2
+        + letters[start + 2] * QUADGRAM_BASE3
+        + letters[start + 3]
+    )
 
 
 def quadgram_indices(letters: list[int]) -> list[int]:
@@ -118,6 +125,64 @@ def score_text(plaintext: str, scores: list[float]) -> float:
     return sum(scores[index] for index in quadgram_indices(letters))
 
 
+def build_move_tables(
+    symbols: list[int], n_quadgrams: int
+) -> tuple[list[list[list[int]]], list[list[list[int]]]]:
+    """Precompute what a swap of two symbols affects.
+
+    Swapping the permutation entries for symbols ``a`` and ``b`` only changes
+    positions whose codeword is ``a`` or ``b``, and only quadgrams that
+    overlap one of those positions.  Building an inverted index once turns
+    every annealing step from an O(len(symbols)) scan into an O(affected)
+    lookup.
+    """
+    positions_per_symbol: list[list[int]] = [[] for _ in range(ALPHABET_SIZE)]
+    for i, symbol in enumerate(symbols):
+        positions_per_symbol[symbol].append(i)
+
+    starts_per_symbol: list[list[int]] = []
+    for symbol in range(ALPHABET_SIZE):
+        starts: set[int] = set()
+        for i in positions_per_symbol[symbol]:
+            for start in range(max(0, i - 3), min(n_quadgrams, i + 1)):
+                starts.add(start)
+        starts_per_symbol.append(sorted(starts))
+
+    def merge(first: list[int], second: list[int]) -> list[int]:
+        merged: list[int] = []
+        i = j = 0
+        while i < len(first) and j < len(second):
+            if first[i] < second[j]:
+                merged.append(first[i])
+                i += 1
+            elif first[i] > second[j]:
+                merged.append(second[j])
+                j += 1
+            else:
+                merged.append(first[i])
+                i += 1
+                j += 1
+        merged.extend(first[i:])
+        merged.extend(second[j:])
+        return merged
+
+    positions_table = [
+        [[] for _ in range(ALPHABET_SIZE)] for _ in range(ALPHABET_SIZE)
+    ]
+    starts_table = [
+        [[] for _ in range(ALPHABET_SIZE)] for _ in range(ALPHABET_SIZE)
+    ]
+    for a in range(ALPHABET_SIZE):
+        for b in range(a + 1, ALPHABET_SIZE):
+            merged_positions = merge(
+                positions_per_symbol[a], positions_per_symbol[b]
+            )
+            merged_starts = merge(starts_per_symbol[a], starts_per_symbol[b])
+            positions_table[a][b] = positions_table[b][a] = merged_positions
+            starts_table[a][b] = starts_table[b][a] = merged_starts
+    return positions_table, starts_table
+
+
 def anneal(
     symbols: list[int],
     shifts: list[int],
@@ -127,8 +192,16 @@ def anneal(
     iterations: int = 15_000,
     start_temperature: float = 5.0,
     end_temperature: float = 0.05,
+    patience: int = 1000,
+    move_tables: tuple[list[list[list[int]]], list[list[list[int]]]] | None = None,
 ) -> tuple[list[int], float]:
-    """Simulated annealing over the 26! table permutation."""
+    """Simulated annealing over the 26! table permutation.
+
+    ``iterations`` is an upper bound.  If the best score has not improved for
+    ``patience`` consecutive steps the run stops early, which cuts the default
+    work by roughly an order of magnitude on the actual ciphertext.  Pass
+    ``patience=0`` to disable early stopping.
+    """
     rng = random.Random(seed)
     permutation = list(range(ALPHABET_SIZE))
     rng.shuffle(permutation)
@@ -141,9 +214,16 @@ def anneal(
     current = sum(scores[index] for index in indices)
     best_permutation = permutation[:]
     best_score = current
+    best_step = 0
 
     if len(indices) < 4:
         return best_permutation, best_score
+
+    if move_tables is None:
+        move_tables = build_move_tables(symbols, len(indices))
+    positions_table, starts_table = move_tables
+    qindex = quadgram_index
+    exp = math.exp
 
     for step in range(iterations):
         temperature = start_temperature * (
@@ -151,19 +231,10 @@ def anneal(
         ) ** (step / iterations)
 
         a, b = rng.sample(range(ALPHABET_SIZE), 2)
+        affected_positions = positions_table[a][b]
+        affected_starts = starts_table[a][b]
+
         permutation[a], permutation[b] = permutation[b], permutation[a]
-
-        # Every position whose plaintext letter changed, and every quadgram
-        # that overlaps one of those positions.
-        affected_positions = {
-            i for i, symbol in enumerate(symbols) if symbol in (a, b)
-        }
-        affected_starts: set[int] = set()
-        for i in affected_positions:
-            first = max(0, i - 3)
-            last = min(len(indices) - 1, i)
-            affected_starts.update(range(first, last + 1))
-
         for i in affected_positions:
             plaintext[i] = (
                 permutation[symbols[i]] + shifts[i]
@@ -171,24 +242,26 @@ def anneal(
 
         new_score = current
         for i in affected_starts:
-            new_score += (
-                scores[quadgram_index(plaintext, i)] - scores[indices[i]]
-            )
+            new_score += scores[qindex(plaintext, i)] - scores[indices[i]]
 
         delta = new_score - current
-        if delta >= 0 or rng.random() < math.exp(delta / temperature):
+        if delta >= 0 or rng.random() < exp(delta / temperature):
             current = new_score
             for i in affected_starts:
-                indices[i] = quadgram_index(plaintext, i)
+                indices[i] = qindex(plaintext, i)
             if current > best_score:
                 best_score = current
                 best_permutation = permutation[:]
+                best_step = step
         else:
             permutation[a], permutation[b] = permutation[b], permutation[a]
             for i in affected_positions:
                 plaintext[i] = (
                     permutation[symbols[i]] + shifts[i]
                 ) % ALPHABET_SIZE
+
+        if patience and step - best_step >= patience:
+            break
 
     return best_permutation, best_score
 
@@ -205,12 +278,18 @@ def main() -> None:
     symbols = [codeword_index[codeword] for codeword in codewords]
 
     scores = load_quadgram_scores(QUADGRAM_FILE)
+    move_tables = build_move_tables(symbols, len(symbols) - 3)
 
     best_permutation: list[int] | None = None
     best_score = float("-inf")
     for seed in range(4):
         permutation, score = anneal(
-            symbols, shifts, scores, seed=seed, iterations=15_000
+            symbols,
+            shifts,
+            scores,
+            seed=seed,
+            iterations=15_000,
+            move_tables=move_tables,
         )
         print(f"seed {seed}: quadgram score {score:.1f}")
         if score > best_score:
