@@ -111,7 +111,8 @@ rebuilds the PDF and stages the result. Enable it once per clone with:
 git config core.hooksPath scripts/git-hooks
 ```
 
-The hook uses `tectonic`, `latexmk`, or `pdflatex`, whichever it finds first.
-If none is installed, it prints a warning and leaves the commit alone. On
-Unix-like systems the hook may need `chmod +x scripts/git-hooks/pre-commit`.
+The hook uses `tectonic`, `latexmk`, or `pdflatex`, whichever it finds first
+(it also checks the usual MiKTeX locations on Windows). If none is found, it
+prints a warning and leaves the commit alone. On Unix-like systems the hook
+may need `chmod +x scripts/git-hooks/pre-commit`.
 

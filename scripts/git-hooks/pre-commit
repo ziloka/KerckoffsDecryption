@@ -16,12 +16,24 @@ if [ -z "$staged_tex" ]; then
 fi
 
 compiler=""
+kind=""
 if command -v tectonic >/dev/null 2>&1; then
-    compiler="tectonic"
+    compiler="tectonic"; kind="tectonic"
 elif command -v latexmk >/dev/null 2>&1; then
-    compiler="latexmk"
+    compiler="latexmk"; kind="latexmk"
 elif command -v pdflatex >/dev/null 2>&1; then
-    compiler="pdflatex"
+    compiler="pdflatex"; kind="pdflatex"
+else
+    # MiKTeX is often installed but not on PATH; fall back to its default
+    # Windows locations.
+    for candidate in \
+        "$LOCALAPPDATA/Programs/MiKTeX/miktex/bin/x64/pdflatex.exe" \
+        "/c/Program Files/MiKTeX/miktex/bin/x64/pdflatex.exe" \
+        "/c/Program Files (x86)/MiKTeX/miktex/bin/x64/pdflatex.exe"; do
+        if [ -x "$candidate" ]; then
+            compiler="$candidate"; kind="pdflatex"; break
+        fi
+    done
 fi
 
 if [ -z "$compiler" ]; then
@@ -36,16 +48,16 @@ for tex in $staged_tex; do
     pdf="$dir/$base.pdf"
     echo "pre-commit: rebuilding $pdf with $compiler"
 
-    case "$compiler" in
+    case "$kind" in
         tectonic)
-            ( cd "$dir" && tectonic -X compile "$base.tex" ) || exit 1
+            ( cd "$dir" && "$compiler" -X compile "$base.tex" ) || exit 1
             ;;
         latexmk)
-            ( cd "$dir" && latexmk -pdf -interaction=nonstopmode -halt-on-error "$base.tex" ) || exit 1
+            ( cd "$dir" && "$compiler" -pdf -interaction=nonstopmode -halt-on-error "$base.tex" ) || exit 1
             ;;
         pdflatex)
-            ( cd "$dir" && pdflatex -interaction=nonstopmode -halt-on-error "$base.tex" >/dev/null && \
-              pdflatex -interaction=nonstopmode -halt-on-error "$base.tex" >/dev/null ) || exit 1
+            ( cd "$dir" && "$compiler" -interaction=nonstopmode -halt-on-error "$base.tex" >/dev/null 2>&1 && \
+              "$compiler" -interaction=nonstopmode -halt-on-error "$base.tex" >/dev/null 2>&1 ) || exit 1
             ;;
     esac
 

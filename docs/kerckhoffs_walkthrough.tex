@@ -53,7 +53,57 @@ cryptanalysis.
 
 \tableofcontents
 
-\section{The setting: Kerckhoffs's principle}
+\section{Roadmap: the whole solve on one page}\label{sec:roadmap}
+
+The series is three increasingly hostile versions of the same machine.  The
+table below is the shortest honest summary of the document; the rest of the
+text unpacks each row.
+
+\begin{center}
+\small
+\setlength{\tabcolsep}{4pt}
+\renewcommand{\arraystretch}{1.25}
+\begin{tabular}{@{}p{0.05\textwidth}p{0.21\textwidth}p{0.33\textwidth}p{0.31\textwidth}@{}}
+\toprule
+\textbf{Part} & \textbf{What is public} & \textbf{What breaks it} & \textbf{Tools you will meet} \\
+\midrule
+1 & the whole table; the first digit gives the length and the last gives the shift & nothing: decode directly & prefix-free codes, greedy parsing, modular arithmetic \\
+2 & the length digit and the shift digit; the table itself is secret & guess the table with a language model and local search & permutations, hill climbing, simulated annealing, $n$-gram language models \\
+3 & nothing but the ciphertext & recover the dictionary, then use a long crib and linear algebra & hash maps, expectation, linear systems over $\mathrm{GF}(2)$ and $\mathrm{GF}(13)$, bitmasks \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Reading guide:
+\begin{itemize}
+  \item Sections~\ref{sec:setting}--\ref{sec:part3} cover the three parts in
+        order.  There is an interlude on hill climbing
+        (Section~\ref{sec:hill}) between parts 1 and 2, because part 2 is the
+        first stage that is really an optimisation problem.
+  \item Section~\ref{sec:failed} records the failed attacks.  It is optional,
+        but it explains why the obvious statistical ideas were not enough.
+  \item Section~\ref{sec:all} collects the concept-to-step map.
+\end{itemize}
+
+\paragraph{A pocket toolbox.}  Five ideas are used over and over.
+
+\begin{enumerate}[label=\arabic*.]
+  \item \textbf{Modular arithmetic.}  Letters are numbers in
+        $\{0,\dots,25\}$ and every operation is modulo 26, so $25+1=0$.
+  \item \textbf{Permutations.}  A table that assigns one codeword to each
+        letter is a bijection, i.e.\ a permutation; there are $26!$ of them.
+  \item \textbf{Expectation.}  The expected number of events is the sum of
+        their probabilities over all opportunities.  This is how we decide
+        that a repeated 9-digit string is a real codeword rather than luck.
+  \item \textbf{Finite fields.}  Modulo a prime $p$, every nonzero element
+        has an inverse, so Gaussian elimination works exactly as over the
+        reals.  We use $p=2$ and $p=13$ because $26=2\cdot13$.
+  \item \textbf{Bitmasks.}  A vector over $\mathrm{GF}(2)$ is a binary number
+        and adding two vectors is XOR, which makes linear algebra on 52
+        unknowns fast enough to run hundreds of thousands of times.
+\end{enumerate}
+
+\section{The setting: Kerckhoffs's principle}\label{sec:setting}
 
 Auguste Kerckhoffs argued that a cryptosystem should stay secure even if
 everything about its design is public except the key.  The cache series is a
@@ -132,6 +182,79 @@ explicit length field, so the parser never has to backtrack.  This is the same
 idea as length-prefixed strings in binary formats.
 \end{lesson}
 
+\section{Interlude: searching a space too big to enumerate}\label{sec:hill}
+
+Part 2 is the first stage that cannot be solved by a direct scan.  Before we
+meet it, here is the idea that rescues us, in the form you would meet in an
+optimisation or AI course --- the material that usually comes after a first
+algorithms course.
+
+\subsection{Optimisation problems}
+
+An optimisation problem has three ingredients:
+
+\begin{itemize}
+  \item a \textbf{state space}: the set of candidate solutions;
+  \item an \textbf{objective function}: a number attached to every state,
+        where larger is better;
+  \item a \textbf{neighbourhood}: for each state, the states reachable by one
+        small change.
+\end{itemize}
+
+The goal is to find a state with the largest objective value.  If the state
+space is small we can enumerate it.  If it has $26!\approx4\times10^{26}$
+elements, we cannot.
+
+\subsection{Hill climbing}
+
+Hill climbing (greedy local search) is the simplest idea that still works on
+huge spaces:
+
+\begin{enumerate}[label=\arabic*.]
+  \item Start at any state, often a random one.
+  \item Look at its neighbours.
+  \item Move to the neighbour with the best score, if that score is better
+        than where you are.
+  \item Repeat until no neighbour improves.  Return the current state.
+\end{enumerate}
+
+Think of a foggy hillside: you can feel the ground around your feet but you
+cannot see the whole landscape.  Repeatedly stepping uphill reaches the top of
+\emph{a} hill, not necessarily the highest one.
+
+\begin{lstlisting}
+def hill_climb(state, score, neighbours):
+    while True:
+        best = max(neighbours(state), key=score)
+        if score(best) <= score(state):
+            return state
+        state = best
+\end{lstlisting}
+
+\subsection{Local optima and the two standard fixes}
+
+The landscape of a hard optimisation problem is usually full of
+\emph{local optima}: states that beat all their neighbours but are not the
+global best.  A plain hill-climber stops at the first one it meets.  Two
+standard remedies:
+
+\begin{itemize}
+  \item \textbf{Random restarts.}  Run the climb from many random starts and
+        keep the best result.  Cheap, but each run still gets stuck.
+  \item \textbf{Accept some bad moves.}  Let the search step downhill
+        occasionally so it can leave a bad basin and find a better one.
+\end{itemize}
+
+The second idea becomes \emph{simulated annealing}, which part 2 uses: early
+on the search accepts many downhill moves and roams freely; as it cools, it
+accepts fewer and settles into a good basin.
+
+\begin{lesson}
+Hill climbing is the bridge between ``I can score a solution'' and ``I can
+find a good solution''.  State, score, and neighbourhood are problem-specific;
+the search loop itself is generic.
+\end{lesson}
+
 \section{Part 2: the table is hidden}\label{sec:part2}
 
 \subsection{What is still visible}
@@ -142,38 +265,74 @@ Two things survive:
   \item The first digit of each codeword still says how long it is, so the
         ciphertext can be split into codewords by a simple scan.
   \item The last digit still says how far the table rotates after that
-        codeword, so the cumulative shift before every position is known.
+        codeword, so the cumulative rotation before every position is known.
 \end{itemize}
 
-Let $c_i$ be the codeword at position $i$, let $\mathrm{pos}(c_i)$ be its
-position in the \emph{original} table, and let $S_i$ be the cumulative
-rotation before position $i$.  Then
+\subsection{Why the plaintext is ``position plus rotation''}
+
+The equation that drives the whole series is worth deriving once, slowly.
+
+Picture the table as a circular list of 26 codewords indexed by plaintext
+letter: index $j$ is the codeword for letter $j$.  Encoding letter $j$ outputs
+the codeword currently sitting at index $j$; then the table rotates so that
+the codeword at index $j$ moves to index $j+k$, where $k$ is the last digit of
+the codeword that was just used.
+
+Track one fixed codeword $c$.  If it originally sat at index
+$\mathrm{pos}(c)$, then after a rotation by $k$ it sits at index
+$\mathrm{pos}(c)+k$.  Rotations compose, so after a total rotation $S_i$ it
+sits at index
+\[
+\mathrm{pos}(c) + S_i \pmod{26}.
+\]
+Decoding is the inverse of encoding: the plaintext letter for $c_i$ is simply
+the index where $c_i$ currently sits, because the table is indexed by
+plaintext letter.  Therefore
 
 \begin{equation}\label{eq:p2}
 \boxed{\;p_i \;=\; \bigl(\mathrm{pos}(c_i) + S_i\bigr)\bmod 26\;}
 \end{equation}
 
 where $p_i$ is the $i$-th plaintext letter as a number $0,\dots,25$.  The
-shifts $S_i$ are known from the ciphertext.  The only unknown is the
-permutation $\mathrm{pos}$.
+rotations are cumulative,
+\[
+S_1 = 0, \qquad
+S_{i+1} = \bigl(S_i + \text{last digit of } c_i\bigr) \bmod 26,
+\]
+and they are computable directly from the ciphertext.
 
-\subsection{The search space and a smarter move}
+\paragraph{A four-letter example.}  Suppose the alphabet is $\{0,1,2,3\}$ and
+the table starts as $[c_0,c_1,c_2,c_3]$.  Encoding letter $1$ outputs $c_1$
+and rotates by $k=1$; $c_1$ now sits at index $2$.  If the next plaintext
+letter is $2$, the encoder outputs whatever sits at index $2$ now, which is
+again $c_1$.  A decoder that meets $c_1$ with cumulative rotation $S=1$
+computes
+\[
+\mathrm{pos}(c_1)+S = 1+1 = 2,
+\]
+so it recovers plaintext letter $2$.  The equation is bookkeeping about where
+a codeword has travelled.
 
-There are $26!$ possible tables---about $4\times 10^{26}$.  Brute force is
-hopeless.  But the problem has a very useful shape: if we guess a table, we can
-decrypt the whole message and ask, ``does this look like English?''
+\subsection{An optimisation problem}
 
-That is a classic optimisation setup:
+The shift sequence $S_i$ is known from the ciphertext, so the only secret is
+the permutation $\mathrm{pos}$.  There are $26!$ possible tables---about
+$4\times10^{26}$---so brute force is hopeless.  But the problem has exactly
+the shape from the interlude:
 
 \begin{itemize}
-  \item \textbf{State:} a permutation of the 26 table positions.
+  \item \textbf{State:} a permutation of the 26 table entries.
   \item \textbf{Score:} how English-like the decrypted text is.
   \item \textbf{Move:} swap two entries of the permutation.
 \end{itemize}
 
-\subsection{Scoring English}
+Score a state and you can hill-climb it.  The next two subsections supply the
+score and then the search.
 
-A \emph{quadgram} is a sequence of four letters, e.g.\ \texttt{THEM}.  The
+\subsection{The score: a quadgram language model}
+
+The objective function from the interlude is a simple language model.  A
+\emph{quadgram} is a sequence of four letters, e.g.\ \texttt{THEM}.  The
 repository includes counts of quadgrams from a large English corpus.  If a
 candidate decryption contains quadgram $q$, we add $\log P(q)$ to its score.
 For a text of length $n$ the total score is
@@ -192,11 +351,12 @@ sequences.  Turning a product into a sum of logs is a standard numerical trick,
 and it makes incremental rescoring possible.
 \end{lesson}
 
-\subsection{Simulated annealing}
+\subsection{From hill climbing to simulated annealing}
 
-Simulated annealing is a randomised hill-climber.  At each step we propose a
-swap.  If the score improves we accept it.  If it gets worse we accept it with
-probability
+Plain hill climbing would stop at the first locally best table.  Simulated
+annealing is the ``accept some bad moves'' fix from the interlude.  At each
+step we propose a swap; if the score improves we accept it, and if it gets
+worse we accept it with probability
 
 \begin{equation}
 \exp\!\left(\frac{\Delta}{T}\right),
@@ -253,13 +413,30 @@ boundaries are.  However, the code is still prefix-free, and the codewords
 repeat often: a codeword encodes a fixed plaintext letter (up to the table
 rotation), so a common letter's codeword appears many times.
 
-\paragraph{A statistical argument.} Suppose the dictionary were replaced by
-random digit strings and the text were random.  The expected number of
-occurrences of a fixed length-$L$ string in $N$ digits is about $N/10^L$.  For
-$N=3377$ and $L=9$ that is $3.4\times10^{-6}$---you would essentially never see
-a 9-digit string repeat.  Yet the recovered length-9 codewords appear 18--26
-times each.  That is overwhelming evidence that they are real codewords rather
-than coincidences.
+\paragraph{A statistical argument.}  To see why a repeated 9-digit string is
+not a coincidence, build a \emph{null model}: pretend the ciphertext is a
+random string in which every digit is chosen independently and uniformly from
+$0,\dots,9$.  Fix a pattern $w$ of length $L$ and ask how many times $w$
+should appear.
+
+There are $N-L+1$ places where $w$ could start (a length-$N$ string has that
+many windows of length $L$).  In the null model the probability that the
+window starting at a fixed place equals $w$ is $(1/10)^L$, because each of the
+$L$ digits must match the corresponding digit of $w$.  Expectation is linear
+--- it does not require the windows to be independent --- so the expected
+number of occurrences is
+\[
+(N-L+1)\cdot(1/10)^L \;\approx\; \frac{N}{10^L}.
+\]
+For $N=3377$ and $L=9$ that is about $3.4\times10^{-6}$: a specific 9-digit
+pattern is essentially never expected to appear even once, let alone 18--26
+times.  The observed counts are overwhelming evidence that these strings are
+real codewords.
+
+(There is a birthday-paradox subtlety here.  With $10^L$ possible patterns and
+$N-L+1$ windows, \emph{some} pattern may repeat by chance at smaller $L$.  The
+calculation above is for one \emph{fixed} pattern, which is the right test for
+a candidate we have already singled out.)
 
 \paragraph{The recovery procedure.}
 \begin{enumerate}[label=\arabic*.]
@@ -541,19 +718,21 @@ statistical cleverness.  Known-plaintext attacks are powerful precisely
 because they use exact information instead of aggregate information.
 \end{lesson}
 
-\section{Putting it all together}
+\section{Putting it all together}\label{sec:all}
 
 The table below maps each stage of the solve to the standard topics it uses.
 
 \begin{center}
+\small
 \renewcommand{\arraystretch}{1.3}
-\begin{tabular}{@{}p{0.30\textwidth}p{0.60\textwidth}@{}}
+\begin{tabular}{@{}p{0.28\textwidth}p{0.62\textwidth}@{}}
 \toprule
 \textbf{Step} & \textbf{Concept} \\
 \midrule
 Part 1 decryption & Prefix-free codes, greedy parsing, modular rotation \\
+Optimisation background & State spaces, objective functions, neighbourhoods, hill climbing, local optima, random restarts \\
 Part 2 table recovery & Permutations, simulated annealing, $n$-gram language models, incremental scoring \\
-Dictionary recovery & Hash maps, substring counting, greedy segmentation, prefix trees, birthday-style statistical reasoning \\
+Dictionary recovery & Hash maps, substring counting, greedy segmentation, prefix trees, expectation and the birthday effect \\
 Key model & Modular arithmetic, linear equations over a ring \\
 Solving the key & Gaussian elimination, finite fields $\mathrm{GF}(2)$ and $\mathrm{GF}(13)$, Chinese remainder theorem, free variables \\
 Offset search & Bitmasks, XOR as vector addition, bit parallelism, complexity analysis \\
