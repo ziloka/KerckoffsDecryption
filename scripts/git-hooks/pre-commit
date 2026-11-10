@@ -1,0 +1,70 @@
+#!/bin/sh
+# Rebuild LaTeX PDFs when a .tex file is staged.
+#
+# Only .tex sources and their .pdf outputs belong in the repository; every
+# other LaTeX file is a regenerable build artifact and is ignored by
+# .gitignore.  Enable this hook with:
+#
+#     git config core.hooksPath scripts/git-hooks
+#
+# The hook is deliberately tolerant: if no LaTeX compiler is installed it
+# prints a warning and lets the commit proceed.
+
+staged_tex=$(git diff --cached --name-only --diff-filter=ACM -- '*.tex')
+if [ -z "$staged_tex" ]; then
+    exit 0
+fi
+
+compiler=""
+if command -v tectonic >/dev/null 2>&1; then
+    compiler="tectonic"
+elif command -v latexmk >/dev/null 2>&1; then
+    compiler="latexmk"
+elif command -v pdflatex >/dev/null 2>&1; then
+    compiler="pdflatex"
+fi
+
+if [ -z "$compiler" ]; then
+    echo "pre-commit: no LaTeX compiler found (tectonic, latexmk, or pdflatex)."
+    echo "pre-commit: skipping PDF rebuild; build and commit the PDF manually."
+    exit 0
+fi
+
+for tex in $staged_tex; do
+    dir=$(dirname "$tex")
+    base=$(basename "$tex" .tex)
+    pdf="$dir/$base.pdf"
+    echo "pre-commit: rebuilding $pdf with $compiler"
+
+    case "$compiler" in
+        tectonic)
+            ( cd "$dir" && tectonic -X compile "$base.tex" ) || exit 1
+            ;;
+        latexmk)
+            ( cd "$dir" && latexmk -pdf -interaction=nonstopmode -halt-on-error "$base.tex" ) || exit 1
+            ;;
+        pdflatex)
+            ( cd "$dir" && pdflatex -interaction=nonstopmode -halt-on-error "$base.tex" >/dev/null && \
+              pdflatex -interaction=nonstopmode -halt-on-error "$base.tex" >/dev/null ) || exit 1
+            ;;
+    esac
+
+    if [ -f "$pdf" ]; then
+        git add "$pdf"
+    else
+        echo "pre-commit: expected $pdf was not produced" >&2
+        exit 1
+    fi
+done
+
+# Belt and braces: never stage LaTeX build artifacts.
+artifacts=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(aux|log|out|toc|lof|lot|fls|fdb_latexmk|synctex\.gz|bbl|blg|nav|snm|vrb|bcf|run\.xml)$' || true)
+if [ -n "$artifacts" ]; then
+    echo "pre-commit: unstaging LaTeX build artifacts:"
+    echo "$artifacts"
+    echo "$artifacts" | while IFS= read -r artifact; do
+        [ -n "$artifact" ] && git reset -q -- "$artifact"
+    done
+fi
+
+exit 0

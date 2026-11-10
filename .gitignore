@@ -49,4 +49,22 @@ coverage.xml
 # Sphinx documentation
 docs/_build/
 
+# LaTeX build artifacts (only .tex sources and .pdf outputs are committed)
+*.aux
+*.log
+*.out
+*.toc
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+*.bbl
+*.blg
+*.nav
+*.snm
+*.vrb
+*.bcf
+*.run.xml
+
 tmp

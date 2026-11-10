@@ -97,3 +97,21 @@ python src/part3.py --break    # re-run the two-block phrase search
 The full key, crib, plaintext, and coordinates are in
 `input/part3_solution.txt`; `POSTMORTEM.md` has the full narrative.
 
+## Documentation
+
+The step-by-step walkthrough of all three parts (aimed at a college-level
+reader) lives in `docs/kerckhoffs_walkthrough.tex`, with the built PDF next to
+it. The PDF is committed; every other LaTeX file is a regenerable build
+artifact and is ignored by `.gitignore`.
+
+A pre-commit hook keeps the two in sync: whenever a `.tex` file is staged, it
+rebuilds the PDF and stages the result. Enable it once per clone with:
+
+```text
+git config core.hooksPath scripts/git-hooks
+```
+
+The hook uses `tectonic`, `latexmk`, or `pdflatex`, whichever it finds first.
+If none is installed, it prints a warning and leaves the commit alone. On
+Unix-like systems the hook may need `chmod +x scripts/git-hooks/pre-commit`.
+
